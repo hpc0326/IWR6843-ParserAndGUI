@@ -15,7 +15,7 @@ class Radar:
         self.max_buffer_size = 2**15
         self.radar_data_buffer = np.zeros(self.max_buffer_size, dtype='uint8')
         self.magic_word = [2, 1, 4, 3, 6, 5, 8, 7]
-        self.magic_flag = False
+        self.magic_flag = True
         self.word = [1, 2**8, 2**16, 2**24]
         print('''[Info] Initialize Radar class ''')
 
@@ -89,14 +89,17 @@ class Radar:
         radar_data = data_serial.read(data_serial.in_waiting)
         radar_data_np = np.frombuffer(radar_data, dtype='uint8')
         radar_data_lenth = len(radar_data_np)
-        # 將數據添加到緩存區
-        self.end_index = self.end_index + radar_data_lenth
-        if self.end_index < self.max_buffer_size:
-            # 確保radar_data_np和self.radar_data_buffer尺寸一致
-            if self.end_index + radar_data_lenth > self.max_buffer_size:
-                radar_data_lenth = self.max_buffer_size - self.end_index
-                radar_data_np = radar_data_np[:radar_data_lenth]
-                self.radar_data_buffer[self.start_index:self.end_index] = radar_data_np[:]
+        # # 將數據添加到緩存區
+        # self.end_index = self.end_index + radar_data_lenth
+        if (self.end_index + radar_data_lenth) < self.max_buffer_size:
+            # 改寫的
+            self.radar_data_buffer[self.end_index:self.end_index + 
+                                   radar_data_lenth] = radar_data_np[:radar_data_lenth]
+            # # 確保radar_data_np和self.radar_data_buffer尺寸一致
+            # if self.end_index + radar_data_lenth > self.max_buffer_size:
+            #     radar_data_lenth = self.max_buffer_size - self.end_index
+            #     radar_data_np = radar_data_np[:radar_data_lenth]
+            #     self.radar_data_buffer[self.start_index:self.end_index] = radar_data_np[:]
         # 大於16個字節，才開始檢查檢查緩存區是否有數據
         if self.end_index > 16:
             # 查找魔術字節的所有可能位置
@@ -118,13 +121,17 @@ class Radar:
                         self.radar_data_buffer[self.end_index-start_idx[0]:] = np.zeros(
                             len(self.radar_data_buffer[self.end_index-start_idx[0]:]), dtype='uint8')
                         self.end_index = self.end_index - start_idx[0]
-                # 確認緩衝區長度沒有錯誤
-                self.end_index = max(self.end_index, 0)
+                # 改寫
+                if self.end_index < 0:
+                    self.end_index = 0
+
+                # # 確認緩衝區長度沒有錯誤
+                # self.end_index = max(self.end_index, 0)
                 # 讀取數據包的總長度
                 total_packet_len = np.matmul(
                     self.radar_data_buffer[12:16], self.word)
                 # 檢查是否已讀取整個數據包
-                if self.end_index >= total_packet_len:
+                if (self.end_index >= total_packet_len):
                     if self.end_index != 0:
                         self.magic_flag = True
         # 如果 magic_flag 為 True，則處理消息
@@ -135,8 +142,9 @@ class Radar:
 
             # init local variables
             start_idx = 0
+            totalBytesParsed = 0
             numFramesParsed = 0
-            DEBUG = True
+            DEBUG = False
 
             parser_result, \
                 headerStartIndex,  \
@@ -153,7 +161,12 @@ class Radar:
                 detectedElevation_array,  \
                 detectedSNR_array,  \
                 detectedNoise_array = parser_one_mmw_demo_output_packet(
-                    self.radar_data_buffer[::], self.end_index, DEBUG)
+                    self.radar_data_buffer[totalBytesParsed::1], self.end_index-totalBytesParsed, DEBUG)
+
+            # 改寫
+            if parser_result == 0:
+                totalBytesParsed += (headerStartIndex+totalPacketNumBytes)
+                numFramesParsed += 1
 
             detObj = {
                 "numObj": numDetObj,
@@ -164,4 +177,18 @@ class Radar:
                 "elevation": detectedElevation_array,
                 "snr": detectedSNR_array
             }
-            print(detObj)
+            # print(detObj)
+
+            # 改寫
+            shiftSize = totalPacketNumBytes
+            self.radar_data_buffer[:self.end_index -
+                                   shiftSize] = self.radar_data_buffer[shiftSize:self.end_index]
+            self.radar_data_buffer[self.end_index - shiftSize:] = np.zeros(
+                len(self.radar_data_buffer[self.end_index - shiftSize:]), dtype='uint8')
+            self.end_index = self.end_index - shiftSize
+
+            # Check that there are no errors with the buffer length
+            if self.end_index < 0:
+                self.end_index = 0
+
+            return detObj
