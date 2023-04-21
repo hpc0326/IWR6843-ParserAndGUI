@@ -2,150 +2,164 @@
 import time
 import serial
 import numpy as np
-from modules.ti_radar_sdk import parser_one_mmw_demo_output_packet
+from modules.parser_mmw_demo import parser_one_mmw_demo_output_packet
+# from modules.ti_radar_sdk import parser_one_mmw_demo_output_packet
 
 
 class Radar:
     """ Class: Radar """
-
     def __init__(self):
-        self.num_tx_ant = 0
-        self.start_index = 0
-        self.end_index = 0
-        self.max_buffer_size = 2**15
-        self.radar_data_buffer = np.zeros(self.max_buffer_size, dtype='uint8')
-        self.magic_word = [2, 1, 4, 3, 6, 5, 8, 7]
-        self.magic_flag = True
+        self.DEBUG = False
+        self.DETECTION = 0
+        self.maxBufferSize = 2**15
+        self.CLIport = {}
+        self.Dataport = {}
+        self.byteBuffer = np.zeros(2**15, dtype='uint8')
+        self.byteBufferLength = 0
+        self.magicWord = [2, 1, 4, 3, 6, 5, 8, 7]
+        self.frameData = {}
+        self.currentIndex = 0
+        self.point = np.zeros((50, 3))
         self.word = [1, 2**8, 2**16, 2**24]
         print('''[Info] Initialize Radar class ''')
+    
+    def serialConfig(self, configFileName, cliPort, dataPort):
+        """ Serial encoding"""
+        self.CLIport = serial.Serial(cliPort, 115200)
+        self.Dataport = serial.Serial(dataPort, 921600)
 
-    def start(self, radar_cli_port, radar_data_port, radar_config_file_path):
-        """ Radar.start """
-        radar_config = []
-
-        cli_serial = serial.Serial(radar_cli_port, 115200)
-        data_serial = serial.Serial(radar_data_port, 921600)
         # Read the configuration file and send it to the board
-        with open(radar_config_file_path, encoding='utf-8') as radar_config_file:
-            for line in radar_config_file:
-                radar_config.append(line.rstrip('\r\n'))
-        # Write the radar configuration to the radar device
-        for line in radar_config:
-            cli_serial.write((line+'\n').encode())
+        config = [line.rstrip('\r\n') for line in open(configFileName)]
+        for i in config:
+            self.CLIport.write((i+'\n').encode())
+            print(i)
             time.sleep(0.01)
+    
+    def parseConfigFile(self, configFileName):
+        # Initialize an empty dictionary to store the configuration parameters
+        configParameters = {}
 
-        self.parse_radar_config(radar_config)
-        print('''[Info] Radar device starting''')
-        return cli_serial, data_serial
+        # Read the configuration file
+        config = [line.rstrip('\r\n') for line in open(configFileName)]
+        for i in config:
+            # Split the line
+            splitWords = i.split(" ")
 
-    def parse_radar_config(self, radar_config):
-        """ Parsing radar config """
-        radar_parameters = {}
+            # Hard code the number of antennas, change if other configuration is used
+            numRxAnt = 4
+            numTxAnt = 1
 
-        for line in radar_config:
-            line_split = line.split(" ")
-            if line_split[0] == 'profileCfg':
-                start_freq = int(float(line_split[2]))
-                idle_time = int(line_split[3])
-                ramp_end_time = float(line_split[5])
-                freq_slope_const = float(line_split[8])
-                num_adc_samples = int(line_split[10])
-                num_adc_aamples_round_to_2 = 1
-                while num_adc_samples > num_adc_aamples_round_to_2:
-                    num_adc_aamples_round_to_2 = num_adc_aamples_round_to_2 * 2
-                dig_out_sample_rate = int(line_split[11])
-            if line_split[0] == 'frameCfg':
-                chirp_start_idx = int(line_split[1])
-                chirp_end_idx = int(line_split[2])
-                num_loops = float(line_split[3])
-                frame_periodicity = float(line_split[5])
-                num_frames = 1000/frame_periodicity
-            if line_split[0] == 'chirpCfg':
-                self.num_tx_ant = self.num_tx_ant + 1
+            # Get the information about the profile configuration
+            if "profileCfg" in splitWords[0]:
+                startFreq = int(float(splitWords[2]))
+                idleTime = int(splitWords[3])
+                rampEndTime = float(splitWords[5])
+                freqSlopeConst = float(splitWords[8])
+                numAdcSamples = int(splitWords[10])
+                numAdcSamplesRoundTo2 = 1
 
-        num_chirps_per_frame = (
-            chirp_end_idx - chirp_start_idx + 1) * num_loops
-        radar_parameters["num_frames"] = num_frames
-        radar_parameters["num_doppler_bins"] = num_chirps_per_frame / self.num_tx_ant
-        radar_parameters["num_range_bins"] = num_adc_aamples_round_to_2
-        radar_parameters["range_resolution_meters"] = (
-            3e8 * dig_out_sample_rate * 1e3) / (2 * freq_slope_const * 1e12 * num_adc_samples)
-        radar_parameters["range_idx_to_meters"] = (3e8 * dig_out_sample_rate * 1e3) / (
-            2 * freq_slope_const * 1e12 * radar_parameters["num_doppler_bins"])
-        radar_parameters["doppler_resolution_mps"] = 3e8 / (2 * start_freq * 1e9 * (
-            idle_time + ramp_end_time) * 1e-6 * radar_parameters["num_doppler_bins"] * self.num_tx_ant)
-        radar_parameters["max_range"] = (
-            300 * 0.9 * dig_out_sample_rate)/(2 * freq_slope_const * 1e3)
-        radar_parameters["max_velocity"] = 3e8 / \
-            (4 * start_freq * 1e9 * (idle_time + ramp_end_time) * 1e-6 * self.num_tx_ant)
-        radar_parameters["frame_periodicity"] = frame_periodicity
-        print(
-            f'''[Info] radar_parameters: {radar_parameters} ''')
-        return radar_parameters
+                while numAdcSamples > numAdcSamplesRoundTo2:
+                    numAdcSamplesRoundTo2 = numAdcSamplesRoundTo2 * 2
 
-    def read_and_parse_radar_data(self, data_serial):
-        ''' read_and_parse_data '''
-        # 讀取雷達數據
-        radar_data = data_serial.read(data_serial.in_waiting)
-        radar_data_np = np.frombuffer(radar_data, dtype='uint8')
-        radar_data_lenth = len(radar_data_np)
-        # # 將數據添加到緩存區
-        # self.end_index = self.end_index + radar_data_lenth
-        if (self.end_index + radar_data_lenth) < self.max_buffer_size:
-            # 改寫的
-            self.radar_data_buffer[self.end_index:self.end_index + 
-                                   radar_data_lenth] = radar_data_np[:radar_data_lenth]
-            # # 確保radar_data_np和self.radar_data_buffer尺寸一致
-            # if self.end_index + radar_data_lenth > self.max_buffer_size:
-            #     radar_data_lenth = self.max_buffer_size - self.end_index
-            #     radar_data_np = radar_data_np[:radar_data_lenth]
-            #     self.radar_data_buffer[self.start_index:self.end_index] = radar_data_np[:]
-        # 大於16個字節，才開始檢查檢查緩存區是否有數據
-        if self.end_index > 16:
-            # 查找魔術字節的所有可能位置
-            possible_locs = np.where(
-                self.radar_data_buffer == self.magic_word[0])[0]
-            # 確定魔術字節的開始位置，並將其儲存到start_idx
-            start_idx = []
-            for loc in possible_locs:
-                check = self.radar_data_buffer[loc:loc+8]
-                if np.all(check == self.magic_word):  # 都符合magic number
-                    start_idx.append(loc)
-            # 檢查start_idx是否為空
-            if start_idx:
-                # 移除第一個魔術字節之前的數據
-                if start_idx[0] > 0:
-                    if start_idx[0] < self.end_index:
-                        self.radar_data_buffer[:self.end_index-start_idx[0]
-                                               ] = self.radar_data_buffer[start_idx[0]:self.end_index]
-                        self.radar_data_buffer[self.end_index-start_idx[0]:] = np.zeros(
-                            len(self.radar_data_buffer[self.end_index-start_idx[0]:]), dtype='uint8')
-                        self.end_index = self.end_index - start_idx[0]
-                # 改寫
-                if self.end_index < 0:
-                    self.end_index = 0
+                digOutSampleRate = int(splitWords[11])
 
-                # # 確認緩衝區長度沒有錯誤
-                # self.end_index = max(self.end_index, 0)
-                # 讀取數據包的總長度
-                total_packet_len = np.matmul(
-                    self.radar_data_buffer[12:16], self.word)
-                # 檢查是否已讀取整個數據包
-                if (self.end_index >= total_packet_len):
-                    if self.end_index != 0:
-                        self.magic_flag = True
-        # 如果 magic_flag 為 True，則處理消息
-        if self.magic_flag:
-            # 讀取整個緩衝區
-            print(f'''radar_data_lenth: {radar_data_lenth}''')
-            print(f'''radar_data_buffer: {self.radar_data_buffer} ''')
+            # Get the information about the frame configuration
+            elif "frameCfg" in splitWords[0]:
+                chirpStartIdx = int(splitWords[1])
+                chirpEndIdx = int(splitWords[2])
+                numLoops = float(splitWords[3])
+                numFrames = int(splitWords[4])
+                framePeriodicity = float(splitWords[5])
+
+        # Combine the read data to obtain the configuration parameters
+        numChirpsPerFrame = (chirpEndIdx - chirpStartIdx + 1) * numLoops
+        configParameters["numDopplerBins"] = numChirpsPerFrame / numTxAnt
+        configParameters["numRangeBins"] = numAdcSamplesRoundTo2
+        configParameters["rangeResolutionMeters"] = (
+            3e8 * digOutSampleRate * 1e3) / (2 * freqSlopeConst * 1e12 * numAdcSamples)
+        configParameters["rangeIdxToMeters"] = (3e8 * digOutSampleRate * 1e3) / (
+            2 * freqSlopeConst * 1e12 * configParameters["numRangeBins"])
+        configParameters["dopplerResolutionMps"] = 3e8 / (2 * startFreq * 1e9 * (
+            idleTime + rampEndTime) * 1e-6 * configParameters["numDopplerBins"] * numTxAnt)
+        configParameters["maxRange"] = (
+            300 * 0.9 * digOutSampleRate)/(2 * freqSlopeConst * 1e3)
+        configParameters["maxVelocity"] = 3e8 / \
+            (4 * startFreq * 1e9 * (idleTime + rampEndTime) * 1e-6 * numTxAnt)
+
+        return configParameters
+    
+    def readAndParseData6843(self, configParameters):
+        # Initialize variables
+        magicOK = 0  # Checks if magic number has been read
+        dataOK = 0  # Checks if the data has been read correctly
+        frameNumber = 0
+        detObj = {}
+
+        readBuffer = self.Dataport.read(self.Dataport.in_waiting)
+        byteVec = np.frombuffer(readBuffer, dtype='uint8')
+        byteCount = len(byteVec)
+
+        # Check that the buffer is not full, and then add the data to the buffer
+        if (self.byteBufferLength + byteCount) < self.maxBufferSize:
+            self.byteBuffer[self.byteBufferLength:self.byteBufferLength +
+                    byteCount] = byteVec[:byteCount]
+            self.byteBufferLength = self.byteBufferLength + byteCount
+
+        # Check that the buffer has some data
+        if self.byteBufferLength > 16:
+
+            # Check for all possible locations of the magic word
+            possibleLocs = np.where(self.byteBuffer == self.magicWord[0])[0]
+
+            # Confirm that is the beginning of the magic word and store the index in startIdx
+            startIdx = []
+            for loc in possibleLocs:
+                check = self.byteBuffer[loc:loc+8]
+                if np.all(check == self.magicWord):
+                    startIdx.append(loc)
+
+            # Check that startIdx is not empty
+            if startIdx:
+
+                # Remove the data before the first start index
+                if startIdx[0] > 0 and startIdx[0] < self.byteBufferLength:
+                    self.byteBuffer[:self.byteBufferLength-startIdx[0]
+                            ] = self.byteBuffer[startIdx[0]:self.byteBufferLength]
+                    self.byteBuffer[self.byteBufferLength-startIdx[0]:] = np.zeros(
+                        len(self.byteBuffer[self.byteBufferLength-startIdx[0]:]), dtype='uint8')
+                    self.byteBufferLength = self.byteBufferLength - startIdx[0]
+
+                # Check that there have no errors with the byte buffer length
+                if self.byteBufferLength < 0:
+                    self.byteBufferLength = 0
+
+                # Read the total packet length
+                totalPacketLen = np.matmul(self.byteBuffer[12:12+4], self.word)
+                # Check that all the packet has been read
+                if (self.byteBufferLength >= totalPacketLen) and (self.byteBufferLength != 0):
+                    magicOK = 1
+        
+        # If magicOK is equal to 1 then process the message
+        if magicOK:
+            # Read the entire buffer
+            readNumBytes = self.byteBufferLength
+            if (self.DEBUG):
+                print("readNumBytes: ", readNumBytes)
+            allBinData = self.byteBuffer
+            if (self.DEBUG):
+                print("allBinData: ",
+                    allBinData[0], allBinData[1], allBinData[2], allBinData[3])
 
             # init local variables
-            start_idx = 0
             totalBytesParsed = 0
             numFramesParsed = 0
-            DEBUG = False
 
+            # parser_one_mmw_demo_output_packet extracts only one complete frame at a time
+            # so call this in a loop till end of file
+            #
+            # parser_one_mmw_demo_output_packet function already prints the
+            # parsed data to stdio. So showcasing only saving the data to arrays
+            # here for further custom processing
             parser_result, \
                 headerStartIndex,  \
                 totalPacketNumBytes, \
@@ -161,34 +175,44 @@ class Radar:
                 detectedElevation_array,  \
                 detectedSNR_array,  \
                 detectedNoise_array = parser_one_mmw_demo_output_packet(
-                    self.radar_data_buffer[totalBytesParsed::1], self.end_index-totalBytesParsed, DEBUG)
+                    allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.DEBUG)
 
-            # 改寫
-            if parser_result == 0:
+            if (self.DEBUG):
+                print("Parser result: ", parser_result)
+            if (parser_result == 0):
                 totalBytesParsed += (headerStartIndex+totalPacketNumBytes)
                 numFramesParsed += 1
 
-            detObj = {
-                "numObj": numDetObj,
-                "range": detectedRange_array,
-                "x": detectedX_array,
-                "y": detectedY_array,
-                "z": detectedZ_array,
-                "elevation": detectedElevation_array,
-                "snr": detectedSNR_array
-            }
-            # print(detObj)
+                if (self.DEBUG):
+                    print("totalBytesParsed: ", totalBytesParsed)
+                ##################################################################################
+                # TODO: use the arrays returned by above parser as needed.
+                # For array dimensions, see help(parser_one_mmw_demo_output_packet)
+                # help(parser_one_mmw_demo_output_packet)
+                ##################################################################################
 
-            # 改寫
+                detObj = {"numObj": numDetObj, "range": detectedRange_array,
+                        "x": detectedX_array, "y": detectedY_array, "z": detectedZ_array,
+                        "elevation": detectedElevation_array, "snr": detectedSNR_array
+                        }
+
+                detSideInfoObj = {"doppler": detectedV_array, "snr": detectedSNR_array,
+                                "noise": detectedNoise_array
+                                }
+                dataOK = 1
+
             shiftSize = totalPacketNumBytes
-            self.radar_data_buffer[:self.end_index -
-                                   shiftSize] = self.radar_data_buffer[shiftSize:self.end_index]
-            self.radar_data_buffer[self.end_index - shiftSize:] = np.zeros(
-                len(self.radar_data_buffer[self.end_index - shiftSize:]), dtype='uint8')
-            self.end_index = self.end_index - shiftSize
+            self.byteBuffer[:self.byteBufferLength -
+                    shiftSize] = self.byteBuffer[shiftSize:self.byteBufferLength]
+            self.byteBuffer[self.byteBufferLength - shiftSize:] = np.zeros(
+                len(self.byteBuffer[self.byteBufferLength - shiftSize:]), dtype='uint8')
+            self.byteBufferLength = self.byteBufferLength - shiftSize
 
             # Check that there are no errors with the buffer length
-            if self.end_index < 0:
-                self.end_index = 0
+            if self.byteBufferLength < 0:
+                self.byteBufferLength = 0
+            # All processing done; Exit
+            if (self.DEBUG):
+                print("numFramesParsed: ", numFramesParsed)
 
-            return detObj
+        return dataOK, frameNumber, detObj

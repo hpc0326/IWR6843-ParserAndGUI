@@ -3,7 +3,7 @@ import math
 import binascii
 import codecs
 import numpy as np
-from modules.parser_module import data_parser
+# from modules.parser_module import data_parser
 
 ###global parameter area ###
 PI = 3.14159265

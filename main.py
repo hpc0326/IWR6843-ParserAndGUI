@@ -6,13 +6,14 @@ import time
 # Initialize calss
 Utils = Utils()
 Radar = Radar()
-GUI = GUI()
 
-RADAR_CLI_PORT, RADAR_DATA_PORT, RADAR_CONFIG_FILE_PATH = Utils.get_radar_env()
-cli_serial, data_serial = Radar.start(RADAR_CLI_PORT, RADAR_DATA_PORT, RADAR_CONFIG_FILE_PATH)
+configFileName, cliPort, dataPort = Utils.get_config_json()
+
+Radar.serialConfig(configFileName, cliPort, dataPort)
+
+configParameters = Radar.parseConfigFile(configFileName)
+
 while 1:
-    detObj = Radar.read_and_parse_radar_data(data_serial)
-    print(detObj)
-    time.sleep(0.1)
-# RADAR_POSISION_X, RADAR_POSISION_Y, RADAR_POSISION_Z, GRID_SIZE= Utils.get_gui_env()
-# GUI.start(RADAR_POSISION_X, RADAR_POSISION_Y, RADAR_POSISION_Z, GRID_SIZE)
+    dataOk, frameNumber, detObj = Radar.readAndParseData6843(configParameters)
+    if dataOk:
+        print(detObj)
