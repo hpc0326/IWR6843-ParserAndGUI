@@ -1,5 +1,7 @@
 """ module radar """
+import os
 import time
+import csv
 import serial
 import numpy as np
 from modules.parser_mmw_demo import parser_one_mmw_demo_output_packet
@@ -21,6 +23,12 @@ class Radar:
         self.currentIndex = 0
         self.point = np.zeros((50, 3))
         self.word = [1, 2**8, 2**16, 2**24]
+        self.wave_start_pt = np.zeros((1, 3))
+        self.wave_last_pt = np.zeros((1, 3))
+        self.wave_end_pt = np.zeros((1, 3))
+        self.wave_start_time = 0
+        self.wave_end_time = 0
+        self.tmp_record_arr = np.zeros((1, 4))
         print('''[Info] Initialize Radar class ''')
     
     def serialConfig(self, configFileName, cliPort, dataPort):
@@ -216,3 +224,146 @@ class Radar:
                 print("numFramesParsed: ", numFramesParsed)
 
         return dataOK, frameNumber, detObj
+
+    def find_average_point(self, dataOk, detObj):
+        x = 0
+        y = 0
+        z = 0
+        n = 0
+        snr_max = 200
+        zero_pt = np.zeros((1, 4))  # for initial zero value
+
+        # get average point per frame
+        if dataOk:
+            pos_pt = np.zeros((detObj["numObj"], 4))
+            avg_pt = zero_pt
+
+            pos_pt = np.array(list(map(tuple, np.stack(
+                [detObj["x"], detObj["y"], detObj["z"], detObj["snr"]], axis=1))))
+
+            # 取出符合條件的索引
+            indices = np.where(pos_pt[:, 3] > snr_max)
+
+            # 取出對應的 x, y, z 值
+            x_vals = pos_pt[indices, 0]
+            y_vals = pos_pt[indices, 1]
+            z_vals = pos_pt[indices, 2]
+
+            # 計算平均值
+            x = np.mean(x_vals)
+            y = np.mean(y_vals)
+            z = np.mean(z_vals)
+            n += len(indices[0])
+
+            if n > 0:
+                avg_pt = np.array([[x, y, z, time.time()]])
+                print('avg_pt:', avg_pt)
+                return avg_pt
+                # print(pos_pt)
+            else:
+                avg_pt = zero_pt
+                print('avg_pt:', avg_pt)
+                return avg_pt
+
+    def point_record(self, dataOk, avg_pt, dir, direction):
+        zero_pt = np.zeros((1, 4))  # for initial zero value
+
+        # update start_detect flag
+        if dataOk:
+            self.DETECTION = self.DETECTION + 1
+
+        # start record
+        if dataOk and (avg_pt != zero_pt).all():
+            if self.DETECTION == 1:
+                print("DETECTION START")
+                self.wave_start_time = time.time()
+                self.tmp_record_arr = avg_pt
+                self.wave_start_pt = avg_pt
+
+            self.wave_last_pt = self.wave_end_pt
+            self.wave_end_pt = avg_pt
+
+            if (self.wave_end_pt != self.wave_last_pt).all():  # avoid noise point
+                if self.DETECTION != 1:  # avoid duplicate start point
+                    self.tmp_record_arr = np.append(self.tmp_record_arr, avg_pt, axis=0)
+
+        elif dataOk == 0:
+            self.wave_end_time = time.time()
+            wave_time = self.wave_end_time - self.wave_start_time
+            if wave_time > 3:
+                # every time execute only can choose one of leftright or updown or others
+                # left / right detect
+                if direction == 0:
+                    if self.wave_end_pt[0][0] > self.wave_start_pt[0][0]:
+                        print("left wave")
+                        filecount = len(os.listdir(dir))
+                        filename = "./radar_data/feng_data_{}.npy".format(
+                            filecount)
+                        new_arr = self.change_time_unit(self.tmp_record_arr)
+                        np.save(filename, new_arr)
+                        with open('np_label.csv', 'a+', newline='') as csvfile:
+                            demoWriter = csv.writer(
+                                csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
+                            demoWriter.writerow([filename, "left wave"])
+                        self.tmp_record_arr = zero_pt
+                    elif self.wave_end_pt[0][0] < self.wave_start_pt[0][0]:
+                        print("right wave")
+                        filecount = len(os.listdir(dir))
+                        filename = "./radar_data/feng_data_{}.npy".format(
+                            filecount)
+                        new_arr = self.change_time_unit(self.tmp_record_arr)
+                        np.save(filename, new_arr)
+                        with open('np_label.csv', 'a+', newline='') as csvfile:
+                            demoWriter = csv.writer(
+                                csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
+                            demoWriter.writerow([filename, "right wave"])
+                        self.tmp_record_arr = zero_pt
+                
+                # up / down detect
+                if direction == 1:
+                    if self.wave_end_pt[0][2] > self.wave_start_pt[0][2]:
+                        print("up wave")
+                        filecount = len(os.listdir(dir))
+                        filename = "./radar_data/feng_data_{}.npy".format(filecount)
+                        new_arr = self.change_time_unit(self.tmp_record_arr)
+                        np.save(filename, new_arr)
+                        with open('np_label.csv', 'a+', newline='') as csvfile:
+                            demoWriter = csv.writer(
+                                csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
+                            demoWriter.writerow([filename, "up wave"])
+                        self.tmp_record_arr = zero_pt
+
+                    elif self.wave_end_pt[0][2] < self.wave_start_pt[0][2]:
+                        print("down wave")
+                        filecount = len(os.listdir(dir))
+                        filename = "./radar_data/feng_data_{}.npy".format(filecount)
+                        new_arr = self.change_time_unit(self.tmp_record_arr)
+                        np.save(filename, new_arr)
+                        with open('np_label.csv', 'a+', newline='') as csvfile:
+                            demoWriter = csv.writer(
+                                csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
+                            demoWriter.writerow([filename, "down wave"])
+                        self.tmp_record_arr = zero_pt
+                
+                # others detect
+                if direction == 2:
+                    if (self.wave_end_pt != self.wave_start_pt).all():
+                        print("others")
+                        with open('mmw_demo_output.csv', 'a+', newline='') as democsvfile:
+                            demoOutputWriter = csv.writer(democsvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
+                            demoOutputWriter.writerow(["others"])
+
+                self.DETECTION = 0
+                self.wave_start_pt = zero_pt
+                self.wave_last_pt = zero_pt
+                self.wave_end_pt = zero_pt
+
+    def change_time_unit(self, tmp_arr):
+        stime = tmp_arr[0][3]
+        new_arr = tmp_arr
+        arr_len = len(tmp_arr)
+
+        for i in range(arr_len):
+            new_arr[i][3] = new_arr[i][3] - stime
+
+        return new_arr

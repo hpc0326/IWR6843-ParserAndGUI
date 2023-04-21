@@ -3,6 +3,9 @@ from modules.radar import Radar
 from modules.gui import GUI
 import time
 
+directory = "./radar_data"
+direction = 0 # 0: left / right detection; 1: up / down detection; 2: other detection
+
 # Initialize calss
 Utils = Utils()
 Radar = Radar()
@@ -15,5 +18,5 @@ configParameters = Radar.parseConfigFile(configFileName)
 
 while 1:
     dataOk, frameNumber, detObj = Radar.readAndParseData6843(configParameters)
-    if dataOk:
-        print(detObj)
+    avg_pt = Radar.find_average_point(dataOk, detObj)
+    Radar.point_record(dataOk, avg_pt, directory, direction)
