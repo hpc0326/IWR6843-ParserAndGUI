@@ -137,6 +137,7 @@ media/*
 
 # Pipenv
 Pipfile
+Pipfile.lock
 .venv
 
 # data
