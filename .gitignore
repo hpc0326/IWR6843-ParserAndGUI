@@ -136,9 +136,9 @@ media/*
 !media/.gitkeep
 
 # Pipenv
-Pipfile
 Pipfile.lock
 .venv
 
 # data
 *.csv
+*.npy

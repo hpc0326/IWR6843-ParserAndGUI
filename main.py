@@ -4,7 +4,7 @@ from modules.gui import GUI
 import time
 
 directory = "./radar_data"
-direction = 0 # 0: left / right detection; 1: up / down detection; 2: other detection
+direction = 1 # 0: left / right detection; 1: up / down detection; 2: other detection
 
 # Initialize calss
 Utils = Utils()

@@ -1,6 +1,8 @@
 """ Module: utils """
 import os
 import json
+import csv
+import numpy as np
 # from dotenv import load_dotenv
 
 class Utils:
@@ -17,3 +19,17 @@ class Utils:
             dataPort = data['dataPort']
 
             return configFileName, cliPort, dataPort
+    
+    def load_radar_data(self, filename):
+        x = []
+        y = []
+        with open(filename, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                npy_file = row[0]
+                label = row[1]
+                data = np.load(npy_file)
+                x.append(data) # 只保留前三個欄位
+                y.append(label)
+
+        return x, y
