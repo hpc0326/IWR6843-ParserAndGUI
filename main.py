@@ -2,7 +2,7 @@ from modules.utils import Utils
 from modules.radar import Radar
 from modules.gui import GUI
 
-# Initialize calss
+# Initialize class
 Utils = Utils()
 Radar = Radar()
 GUI = GUI()
