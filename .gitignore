@@ -140,5 +140,8 @@ Pipfile.lock
 .venv
 
 # data
+!radar_data/
+radar_data/*
+!radar_data/.gitkeep
 *.csv
 *.npy

@@ -20,13 +20,14 @@ class GUI():
         gl_view = gl.GLViewWidget()
         gl_view.setBackgroundColor(QtGui.QColor(0, 0, 0))
         gl_view.show()
-        app.exec_()
+        # app.exec_()
         self.radar_position_settings(
             gl_view, radar_position_x, radar_position_y, radar_position_z)
         self.grid_settings(gl_view, grid_size)
         self.coordinate_axis_settings(gl_view)
         self.view_angle_settings(gl_view)
         self.initialize_point_cloud(gl_view)
+        app.exec_()
         if sys.flags.interactive != 1:
             if hasattr(QtCore, 'PYQT_VERSION'):
                 QtWidgets.QApplication.instance().exec()
@@ -67,15 +68,17 @@ class GUI():
 
         gyz = gl.GLGridItem()  # Three-dimensional grid
         gyz.setSize(x=grid_size, y=grid_size, z=grid_size)
+        gyz.rotate(90, 0, 1, 0)
         gyz.setSpacing(x=0.1, y=0.1, z=0.1)
-        gyz.translate(0, grid_size/2, -(grid_size/2))
+        gyz.translate(-(grid_size/2), grid_size/2, 0)
         gyz.setColor((255, 255, 255, 60))
         gl_view.addItem(gyz)
 
         gzx = gl.GLGridItem()  # Three-dimensional grid
         gzx.setSize(x=grid_size, y=grid_size, z=grid_size)
+        gzx.rotate(90, 1, 0, 0)
         gzx.setSpacing(x=0.1, y=0.1, z=0.1)
-        gzx.translate(0, grid_size/2, -(grid_size/2))
+        gzx.translate(0, 0, 0)
         gzx.setColor((255, 255, 255, 60))
         gl_view.addItem(gzx)
 

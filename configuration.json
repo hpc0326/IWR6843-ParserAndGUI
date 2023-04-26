@@ -1,6 +1,0 @@
-{
-    "configFileName" : "./radar_config/23_4_12.cfg",
-    "cliPort" : "COM8",
-    "dataPort" : "COM7",
-    "debugMode" : "True"
-}
