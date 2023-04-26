@@ -13,7 +13,7 @@ class GUI():
 
         print('''[Info] Initialize GUI class ''')
 
-    def start(self, radar_position_x, radar_position_y, radar_position_z, grid_size):
+    def start(self, radar_position_x, radar_position_y, radar_position_z, grid_size, avg_pt_queue):
         """ start """
         # pylint: disable=W0612
         app = QtWidgets.QApplication([])
@@ -27,6 +27,11 @@ class GUI():
         self.coordinate_axis_settings(gl_view)
         self.view_angle_settings(gl_view)
         self.initialize_point_cloud(gl_view)
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.update_point)
+        self.timer.start(50)
+        self.avg_pt_queue = avg_pt_queue
+        self.point_cloud = gl.GLScatterPlotItem(pos=np.zeros((100, 3)), color=[0, 255, 240, 255], size=10.0)
         app.exec_()
         if sys.flags.interactive != 1:
             if hasattr(QtCore, 'PYQT_VERSION'):
@@ -96,6 +101,15 @@ class GUI():
 
     def initialize_point_cloud(self, gl_view):
         """ initialize_point_cloud """
-        point_cloud = gl.GLScatterPlotItem(pos=np.zeros((100, 3)), color=[
+        self.point_cloud = gl.GLScatterPlotItem(pos=np.zeros((100, 3)), color=[
                                            0, 255, 240, 255], size=10.0)
-        gl_view.addItem(point_cloud)
+        gl_view.addItem(self.point_cloud)
+
+    def update_point(self):
+        """ update_point """
+        print(self.avg_pt_queue.get())
+        point = self.avg_pt_queue.get()
+        self.point_cloud.setData(point)
+        # avg_pt = self.avg_pt_queue.get()
+        # self.update_average_point(avg_pt)
+
