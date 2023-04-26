@@ -5,12 +5,13 @@ import pyqtgraph.opengl as gl
 import pyqtgraph as pg
 import numpy as np
 
-
 class GUI():
     ''' Class GUI '''
 
     def __init__(self):
-
+        
+        self.point_data = np.array([[0.0 ,0.0 ,0.0]])
+        self.point_cloud = None
         print('''[Info] Initialize GUI class ''')
 
     def start(self, radar_position_x, radar_position_y, radar_position_z, grid_size):
@@ -27,9 +28,11 @@ class GUI():
         self.coordinate_axis_settings(gl_view)
         self.view_angle_settings(gl_view)
         self.initialize_point_cloud(gl_view)
-        app.exec_()
+        timer = QtCore.QTimer()
+        self.setTimer(timer)
+        # app.exec_()
         if sys.flags.interactive != 1:
-            if hasattr(QtCore, 'PYQT_VERSION'):
+            if not hasattr(QtCore, 'PYQT_VERSION'):
                 QtWidgets.QApplication.instance().exec()
 
     def radar_position_settings(self, gl_view, radar_position_x, radar_position_y, radar_position_z):
@@ -96,6 +99,18 @@ class GUI():
 
     def initialize_point_cloud(self, gl_view):
         """ initialize_point_cloud """
-        point_cloud = gl.GLScatterPlotItem(pos=np.zeros((100, 3)), color=[
+        self.point_cloud = gl.GLScatterPlotItem(pos=np.zeros((100, 3)), color=[
                                            0, 255, 240, 255], size=10.0)
-        gl_view.addItem(point_cloud)
+        gl_view.addItem(self.point_cloud)
+
+    def update_point(self):
+        self.point_cloud.setData(pos=self.point_data)
+
+    def setTimer(self, t):
+        t.timeout.connect(self.update_point)
+        t.start(50)
+
+    def store_point(self, point):
+        print(point)
+        self.point_data = point
+    
