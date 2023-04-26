@@ -254,12 +254,12 @@ class Radar:
 
             if num_points > 0:
                 avg_pt = np.array([[x_value, y_value, z_value, time.time()]])
-                print('avg_pt:', avg_pt)
+                # print('avg_pt:', avg_pt)
                 return avg_pt
                 # print(pos_pt)
             else:
                 avg_pt = zero_pt
-                print('avg_pt:', avg_pt)
+                # print('avg_pt:', avg_pt)
                 return avg_pt
 
     def point_record(self, data_ok, avg_pt, npy_file_dir, npy_file_name, direction):

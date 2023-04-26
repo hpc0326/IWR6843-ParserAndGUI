@@ -5,36 +5,31 @@ import pyqtgraph.opengl as gl
 import pyqtgraph as pg
 import numpy as np
 
-
 class GUI():
     ''' Class GUI '''
 
     def __init__(self):
-
+        self.point_cloud = None
+        self.point_data = np.array([[0.0 ,0.0 ,0.0]])
         print('''[Info] Initialize GUI class ''')
 
-    def start(self, radar_position_x, radar_position_y, radar_position_z, grid_size, avg_pt_queue):
+    def start(self, radar_position_x, radar_position_y, radar_position_z, grid_size):
         """ start """
         # pylint: disable=W0612
         app = QtWidgets.QApplication([])
         gl_view = gl.GLViewWidget()
         gl_view.setBackgroundColor(QtGui.QColor(0, 0, 0))
         gl_view.show()
-        # app.exec_()
         self.radar_position_settings(
             gl_view, radar_position_x, radar_position_y, radar_position_z)
         self.grid_settings(gl_view, grid_size)
         self.coordinate_axis_settings(gl_view)
         self.view_angle_settings(gl_view)
         self.initialize_point_cloud(gl_view)
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.update_point)
-        self.timer.start(50)
-        self.avg_pt_queue = avg_pt_queue
-        self.point_cloud = gl.GLScatterPlotItem(pos=np.zeros((100, 3)), color=[0, 255, 240, 255], size=10.0)
-        app.exec_()
+        timer = QtCore.QTimer()
+        self.set_timer(timer)
         if sys.flags.interactive != 1:
-            if hasattr(QtCore, 'PYQT_VERSION'):
+            if not hasattr(QtCore, 'PYQT_VERSION'):
                 QtWidgets.QApplication.instance().exec()
 
     def radar_position_settings(self, gl_view, radar_position_x, radar_position_y, radar_position_z):
@@ -107,9 +102,15 @@ class GUI():
 
     def update_point(self):
         """ update_point """
-        print(self.avg_pt_queue.get())
-        point = self.avg_pt_queue.get()
-        self.point_cloud.setData(point)
-        # avg_pt = self.avg_pt_queue.get()
-        # self.update_average_point(avg_pt)
+        self.point_cloud.setData(pos=self.point_data)
 
+    def set_timer(self, timer):
+        """ set_timer """
+        timer.timeout.connect(self.update_point)
+        timer.start(50)
+
+    def store_point(self, point):
+        """ store_point """
+        self.point_data = point
+        print(point)
+    

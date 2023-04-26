@@ -146,3 +146,4 @@ radar_data/*
 *.csv
 *.npy
 *.gif
+*.csv
