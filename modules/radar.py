@@ -11,17 +11,13 @@ from modules.parser_mmw_demo import parser_one_mmw_demo_output_packet
 class Radar:
     """ Class: Radar """
     def __init__(self):
-        self.DEBUG = False
-        self.DETECTION = 0
-        self.maxBufferSize = 2**15
-        self.CLIport = {}
-        self.Dataport = {}
-        self.byteBuffer = np.zeros(2**15, dtype='uint8')
-        self.byteBufferLength = 0
-        self.magicWord = [2, 1, 4, 3, 6, 5, 8, 7]
-        self.frameData = {}
-        self.currentIndex = 0
-        self.point = np.zeros((50, 3))
+        self.debug = False
+        self.detection = 0
+        self.num_tx_ant = 0
+        self.max_buffer_size = 2**15
+        self.byte_buffer = np.zeros(2**15, dtype='uint8')
+        self.byte_buffer_length = 0
+        self.magic_word = [2, 1, 4, 3, 6, 5, 8, 7]
         self.word = [1, 2**8, 2**16, 2**24]
         self.wave_start_pt = np.zeros((1, 3))
         self.wave_last_pt = np.zeros((1, 3))
@@ -29,11 +25,6 @@ class Radar:
         self.wave_start_time = 0
         self.wave_end_time = 0
         self.tmp_record_arr = np.zeros((1, 4))
-
-        self.start_index = 0
-        self.num_tx_ant = 0
-        self.start_index = 0
-        self.end_index = 0
         print('''[Info] Initialize Radar class ''')
 
     def start(self, radar_cli_port, radar_data_port, radar_config_file_path):
@@ -113,53 +104,53 @@ class Radar:
         byteCount = len(byteVec)
 
         # Check that the buffer is not full, and then add the data to the buffer
-        if (self.byteBufferLength + byteCount) < self.maxBufferSize:
-            self.byteBuffer[self.byteBufferLength:self.byteBufferLength +
+        if (self.byte_buffer_length + byteCount) < self.max_buffer_size:
+            self.byte_buffer[self.byte_buffer_length:self.byte_buffer_length +
                     byteCount] = byteVec[:byteCount]
-            self.byteBufferLength = self.byteBufferLength + byteCount
+            self.byte_buffer_length = self.byte_buffer_length + byteCount
 
         # Check that the buffer has some data
-        if self.byteBufferLength > 16:
+        if self.byte_buffer_length > 16:
 
             # Check for all possible locations of the magic word
-            possibleLocs = np.where(self.byteBuffer == self.magicWord[0])[0]
+            possibleLocs = np.where(self.byte_buffer == self.magic_word[0])[0]
 
             # Confirm that is the beginning of the magic word and store the index in startIdx
             startIdx = []
             for loc in possibleLocs:
-                check = self.byteBuffer[loc:loc+8]
-                if np.all(check == self.magicWord):
+                check = self.byte_buffer[loc:loc+8]
+                if np.all(check == self.magic_word):
                     startIdx.append(loc)
 
             # Check that startIdx is not empty
             if startIdx:
 
                 # Remove the data before the first start index
-                if startIdx[0] > 0 and startIdx[0] < self.byteBufferLength:
-                    self.byteBuffer[:self.byteBufferLength-startIdx[0]
-                            ] = self.byteBuffer[startIdx[0]:self.byteBufferLength]
-                    self.byteBuffer[self.byteBufferLength-startIdx[0]:] = np.zeros(
-                        len(self.byteBuffer[self.byteBufferLength-startIdx[0]:]), dtype='uint8')
-                    self.byteBufferLength = self.byteBufferLength - startIdx[0]
+                if startIdx[0] > 0 and startIdx[0] < self.byte_buffer_length:
+                    self.byte_buffer[:self.byte_buffer_length-startIdx[0]
+                            ] = self.byte_buffer[startIdx[0]:self.byte_buffer_length]
+                    self.byte_buffer[self.byte_buffer_length-startIdx[0]:] = np.zeros(
+                        len(self.byte_buffer[self.byte_buffer_length-startIdx[0]:]), dtype='uint8')
+                    self.byte_buffer_length = self.byte_buffer_length - startIdx[0]
 
                 # Check that there have no errors with the byte buffer length
-                if self.byteBufferLength < 0:
-                    self.byteBufferLength = 0
+                if self.byte_buffer_length < 0:
+                    self.byte_buffer_length = 0
 
                 # Read the total packet length
-                totalPacketLen = np.matmul(self.byteBuffer[12:12+4], self.word)
+                totalPacketLen = np.matmul(self.byte_buffer[12:12+4], self.word)
                 # Check that all the packet has been read
-                if (self.byteBufferLength >= totalPacketLen) and (self.byteBufferLength != 0):
+                if (self.byte_buffer_length >= totalPacketLen) and (self.byte_buffer_length != 0):
                     magicOK = 1
         
         # If magicOK is equal to 1 then process the message
         if magicOK:
             # Read the entire buffer
-            readNumBytes = self.byteBufferLength
-            if (self.DEBUG):
+            readNumBytes = self.byte_buffer_length
+            if (self.debug):
                 print("readNumBytes: ", readNumBytes)
-            allBinData = self.byteBuffer
-            if (self.DEBUG):
+            allBinData = self.byte_buffer
+            if (self.debug):
                 print("allBinData: ",
                     allBinData[0], allBinData[1], allBinData[2], allBinData[3])
 
@@ -188,15 +179,15 @@ class Radar:
                 detectedElevation_array,  \
                 detectedSNR_array,  \
                 detectedNoise_array = parser_one_mmw_demo_output_packet(
-                    allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.DEBUG)
+                    allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.debug)
 
-            if (self.DEBUG):
+            if (self.debug):
                 print("Parser result: ", parser_result)
             if (parser_result == 0):
                 totalBytesParsed += (headerStartIndex+totalPacketNumBytes)
                 numFramesParsed += 1
 
-                if (self.DEBUG):
+                if (self.debug):
                     print("totalBytesParsed: ", totalBytesParsed)
                 ##################################################################################
                 # TODO: use the arrays returned by above parser as needed.
@@ -215,37 +206,37 @@ class Radar:
                 dataOK = 1
 
             shiftSize = totalPacketNumBytes
-            self.byteBuffer[:self.byteBufferLength -
-                    shiftSize] = self.byteBuffer[shiftSize:self.byteBufferLength]
-            self.byteBuffer[self.byteBufferLength - shiftSize:] = np.zeros(
-                len(self.byteBuffer[self.byteBufferLength - shiftSize:]), dtype='uint8')
-            self.byteBufferLength = self.byteBufferLength - shiftSize
+            self.byte_buffer[:self.byte_buffer_length -
+                    shiftSize] = self.byte_buffer[shiftSize:self.byte_buffer_length]
+            self.byte_buffer[self.byte_buffer_length - shiftSize:] = np.zeros(
+                len(self.byte_buffer[self.byte_buffer_length - shiftSize:]), dtype='uint8')
+            self.byte_buffer_length = self.byte_buffer_length - shiftSize
 
             # Check that there are no errors with the buffer length
-            if self.byteBufferLength < 0:
-                self.byteBufferLength = 0
+            if self.byte_buffer_length < 0:
+                self.byte_buffer_length = 0
             # All processing done; Exit
-            if (self.DEBUG):
+            if (self.debug):
                 print("numFramesParsed: ", numFramesParsed)
 
         return dataOK, frameNumber, detObj
 
-    def find_average_point(self, dataOk, detObj):
+    def find_average_point(self, data_ok, detection_obj):
         """ find average point """
-        x = 0
-        y = 0
-        z = 0
-        n = 0
+        x_value = 0
+        y_value = 0
+        z_value = 0
+        num_points = 0
         snr_max = 200
         zero_pt = np.zeros((1, 4))  # for initial zero value
 
         # get average point per frame
-        if dataOk:
-            pos_pt = np.zeros((detObj["numObj"], 4))
+        if data_ok:
+            pos_pt = np.zeros((detection_obj["numObj"], 4))
             avg_pt = zero_pt
 
             pos_pt = np.array(list(map(tuple, np.stack(
-                [detObj["x"], detObj["y"], detObj["z"], detObj["snr"]], axis=1))))
+                [detection_obj["x"], detection_obj["y"], detection_obj["z"], detection_obj["snr"]], axis=1))))
 
             # 取出符合條件的索引
             indices = np.where(pos_pt[:, 3] > snr_max)
@@ -256,13 +247,13 @@ class Radar:
             z_vals = pos_pt[indices, 2]
 
             # 計算平均值
-            x = np.mean(x_vals)
-            y = np.mean(y_vals)
-            z = np.mean(z_vals)
-            n += len(indices[0])
+            x_value = np.mean(x_vals)
+            y_value = np.mean(y_vals)
+            z_value = np.mean(z_vals)
+            num_points += len(indices[0])
 
-            if n > 0:
-                avg_pt = np.array([[x, y, z, time.time()]])
+            if num_points > 0:
+                avg_pt = np.array([[x_value, y_value, z_value, time.time()]])
                 print('avg_pt:', avg_pt)
                 return avg_pt
                 # print(pos_pt)
@@ -271,17 +262,17 @@ class Radar:
                 print('avg_pt:', avg_pt)
                 return avg_pt
 
-    def point_record(self, dataOk, avg_pt, dir, direction):
+    def point_record(self, data_ok, avg_pt, npy_file_dir, npy_file_name, direction):
         """ record gesture point"""
         zero_pt = np.zeros((1, 4))  # for initial zero value
 
         # update start_detect flag
-        if dataOk:
-            self.DETECTION = self.DETECTION + 1
+        if data_ok:
+            self.detection = self.detection + 1
 
         # start record
-        if dataOk and (avg_pt != zero_pt).all():
-            if self.DETECTION == 1:
+        if data_ok and (avg_pt != zero_pt).all():
+            if self.detection == 1:
                 print("DETECTION START")
                 self.wave_start_time = time.time()
                 self.tmp_record_arr = avg_pt
@@ -291,10 +282,10 @@ class Radar:
             self.wave_end_pt = avg_pt
 
             if (self.wave_end_pt != self.wave_last_pt).all():  # avoid noise point
-                if self.DETECTION != 1:  # avoid duplicate start point
+                if self.detection != 1:  # avoid duplicate start point
                     self.tmp_record_arr = np.append(self.tmp_record_arr, avg_pt, axis=0)
 
-        elif dataOk == 0:
+        elif data_ok == 0:
             self.wave_end_time = time.time()
             wave_time = self.wave_end_time - self.wave_start_time
             if wave_time > 3:
@@ -303,64 +294,62 @@ class Radar:
                 if direction == 0:
                     if self.wave_end_pt[0][0] > self.wave_start_pt[0][0]:
                         print("left wave")
-                        filecount = len(os.listdir(dir))
-                        filename = "./radar_data/feng_data_{}.npy".format(
-                            filecount)
+                        filecount = len(os.listdir(npy_file_dir))
+                        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
                         new_arr = self.change_time_unit(self.tmp_record_arr)
                         np.save(filename, new_arr)
-                        with open('np_label.csv', 'a+', newline='') as csvfile:
-                            demoWriter = csv.writer(
+                        with open('np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
+                            demo_writer = csv.writer(
                                 csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demoWriter.writerow([filename, "left wave"])
+                            demo_writer.writerow([filename, "left wave"])
                         self.tmp_record_arr = zero_pt
                     elif self.wave_end_pt[0][0] < self.wave_start_pt[0][0]:
                         print("right wave")
-                        filecount = len(os.listdir(dir))
-                        filename = "./radar_data/feng_data_{}.npy".format(
-                            filecount)
+                        filecount = len(os.listdir(npy_file_dir))
+                        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
                         new_arr = self.change_time_unit(self.tmp_record_arr)
                         np.save(filename, new_arr)
-                        with open('np_label.csv', 'a+', newline='') as csvfile:
-                            demoWriter = csv.writer(
+                        with open('np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
+                            demo_writer = csv.writer(
                                 csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demoWriter.writerow([filename, "right wave"])
+                            demo_writer.writerow([filename, "right wave"])
                         self.tmp_record_arr = zero_pt
                 
                 # up / down detect
                 if direction == 1:
                     if self.wave_end_pt[0][2] > self.wave_start_pt[0][2]:
                         print("up wave")
-                        filecount = len(os.listdir(dir))
-                        filename = "./radar_data/feng_data_{}.npy".format(filecount)
+                        filecount = len(os.listdir(npy_file_dir))
+                        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
                         new_arr = self.change_time_unit(self.tmp_record_arr)
                         np.save(filename, new_arr)
-                        with open('np_label.csv', 'a+', newline='') as csvfile:
-                            demoWriter = csv.writer(
+                        with open('np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
+                            demo_writer = csv.writer(
                                 csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demoWriter.writerow([filename, "up wave"])
+                            demo_writer.writerow([filename, "up wave"])
                         self.tmp_record_arr = zero_pt
 
                     elif self.wave_end_pt[0][2] < self.wave_start_pt[0][2]:
                         print("down wave")
-                        filecount = len(os.listdir(dir))
-                        filename = "./radar_data/feng_data_{}.npy".format(filecount)
+                        filecount = len(os.listdir(npy_file_dir))
+                        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
                         new_arr = self.change_time_unit(self.tmp_record_arr)
                         np.save(filename, new_arr)
-                        with open('np_label.csv', 'a+', newline='') as csvfile:
-                            demoWriter = csv.writer(
+                        with open('np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
+                            demo_writer = csv.writer(
                                 csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demoWriter.writerow([filename, "down wave"])
+                            demo_writer.writerow([filename, "down wave"])
                         self.tmp_record_arr = zero_pt
-                
+
                 # others detect
                 if direction == 2:
                     if (self.wave_end_pt != self.wave_start_pt).all():
                         print("others")
-                        with open('mmw_demo_output.csv', 'a+', newline='') as democsvfile:
-                            demoOutputWriter = csv.writer(democsvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demoOutputWriter.writerow(["others"])
+                        with open('mmw_demo_output.csv', 'a+', newline='', encoding='utf-8') as democsvfile:
+                            demo_output_writer = csv.writer(democsvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
+                            demo_output_writer.writerow(["others"])
 
-                self.DETECTION = 0
+                self.detection = 0
                 self.wave_start_pt = zero_pt
                 self.wave_last_pt = zero_pt
                 self.wave_end_pt = zero_pt
