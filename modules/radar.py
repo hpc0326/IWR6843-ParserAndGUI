@@ -25,6 +25,7 @@ class Radar:
         self.wave_start_time = 0
         self.wave_end_time = 0
         self.tmp_record_arr = np.zeros((1, 4))
+        self.radar_parameters = {}
         print('''[Info] Initialize Radar class ''')
 
     def start(self, radar_cli_port, radar_data_port, radar_config_file_path):
@@ -42,7 +43,7 @@ class Radar:
             cli_serial.write((line+'\n').encode())
             time.sleep(0.01)
 
-        self.parse_radar_config(radar_config)
+        self.radar_parameters = self.parse_radar_config(radar_config)
         print('''[Info] Radar device starting''')
         return cli_serial, data_serial
 
@@ -165,21 +166,24 @@ class Radar:
             # parsed data to stdio. So showcasing only saving the data to arrays
             # here for further custom processing
             parser_result, \
-                headerStartIndex,  \
-                totalPacketNumBytes, \
-                numDetObj,  \
-                numTlv,  \
-                subFrameNumber,  \
-                detectedX_array,  \
-                detectedY_array,  \
-                detectedZ_array,  \
-                detectedV_array,  \
-                detectedRange_array,  \
-                detectedAzimuth_array,  \
-                detectedElevation_array,  \
-                detectedSNR_array,  \
-                detectedNoise_array = parser_one_mmw_demo_output_packet(
-                    allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.debug)
+            headerStartIndex,  \
+            totalPacketNumBytes, \
+            numDetObj,  \
+            numTlv,  \
+            subFrameNumber,  \
+            detectedX_array,  \
+            detectedY_array,  \
+            detectedZ_array,  \
+            detectedV_array,  \
+            detectedRange_array,  \
+            detectedAzimuth_array,  \
+            detectedElevation_array,  \
+            detectedSNR_array,  \
+            detectedNoise_array,\
+            rangeArray,\
+            dopplerArray,\
+            rangeDoppler = parser_one_mmw_demo_output_packet(
+                allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.radar_parameters, self.debug)
 
             if (self.debug):
                 print("Parser result: ", parser_result)
@@ -218,9 +222,16 @@ class Radar:
             # All processing done; Exit
             if (self.debug):
                 print("numFramesParsed: ", numFramesParsed)
+            
+            if not dataOK :
+                frameNumber = []
+                detObj = []
+                rangeArray = ['1']
+                dopplerArray = ['1']
+                rangeDoppler = ['1']
 
-        return dataOK, frameNumber, detObj
-
+            return dataOK, frameNumber, detObj, rangeArray, dopplerArray, rangeDoppler
+            
     def find_average_point(self, data_ok, detection_obj):
         """ find average point """
         x_value = 0
