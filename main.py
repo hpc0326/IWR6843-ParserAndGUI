@@ -29,17 +29,17 @@ RADAR_POSITION_X, RADAR_POSITION_Y, RADAR_POSITION_Z, GRID_SIZE = Utils.get_gui_
 
 def process():
     while 1:
-        dataOk, frameNumber, detObj, rangeArray, dopplerArray, rangeDoppler = Radar.read_and_parse_radar_data(data_serial)
+        dataOk, frameNumber, detObj = Radar.read_and_parse_radar_data(data_serial)
         avg_pt = Radar.find_average_point(dataOk, detObj)
         Radar.point_record(
                 dataOk, avg_pt, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, DETECT_DIRECTION)
         
-        if dataOk and POINT_CLOUD_GUI:
+        if dataOk and POINT_CLOUD_GUI :
             GUI.store_point(avg_pt[:, :3])
             
-        if dataOk and HEATMAP_GUI:
-            # pass
-            HEATMAP.save_data(rangeArray, dopplerArray, rangeDoppler)
+        if dataOk and HEATMAP_GUI and not POINT_CLOUD_GUI:
+            
+            HEATMAP.save_data(detObj['rangeArray'], detObj['dopplerArray'], detObj['rangeDoppler'])
        
 
 if POINT_CLOUD_GUI:

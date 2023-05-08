@@ -21,7 +21,6 @@ class GUI():
         gl_view = gl.GLViewWidget()
         gl_view.setBackgroundColor(QtGui.QColor(0, 0, 0))
         gl_view.show()
-        # app.exec_()
         self.radar_position_settings(
             gl_view, radar_position_x, radar_position_y, radar_position_z)
         self.grid_settings(gl_view, grid_size)

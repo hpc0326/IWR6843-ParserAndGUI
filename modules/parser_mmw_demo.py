@@ -147,7 +147,10 @@ def parser_one_mmw_demo_output_packet(data, readNumBytes, configParameters, debu
     detectedElevAngle_array = []
     detectedSNR_array = []
     detectedNoise_array = []
-
+    rangeArray = []
+    dopplerArray = []
+    rangeDoppler = []
+    
     result = TC_PASS
 
     # call parser_helper() function to find the output packet header start location and packet size 

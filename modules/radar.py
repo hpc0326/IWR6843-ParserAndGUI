@@ -144,6 +144,9 @@ class Radar:
                 if (self.byte_buffer_length >= totalPacketLen) and (self.byte_buffer_length != 0):
                     magicOK = 1
         
+        rangeArray = []
+        dopplerArray = []
+        rangeDoppler = []
         # If magicOK is equal to 1 then process the message
         if magicOK:
             # Read the entire buffer
@@ -201,7 +204,9 @@ class Radar:
 
                 detObj = {"numObj": numDetObj, "range": detectedRange_array,
                         "x": detectedX_array, "y": detectedY_array, "z": detectedZ_array,
-                        "elevation": detectedElevation_array, "snr": detectedSNR_array
+                        "elevation": detectedElevation_array, "snr": detectedSNR_array, 
+                        "rangeArray" : rangeArray , "dopplerArray" : dopplerArray , 
+                        "rangeDoppler" : rangeDoppler
                         }
 
                 detSideInfoObj = {"doppler": detectedV_array, "snr": detectedSNR_array,
@@ -223,15 +228,17 @@ class Radar:
             if (self.debug):
                 print("numFramesParsed: ", numFramesParsed)
             
-            if not dataOK :
-                frameNumber = []
-                detObj = []
-                rangeArray = ['1']
-                dopplerArray = ['1']
-                rangeDoppler = ['1']
-
-            return dataOK, frameNumber, detObj, rangeArray, dopplerArray, rangeDoppler
+            # if dataOK :
+            #     print('great')
+            #     #, rangeArray, dopplerArray, rangeDoppler
             
+            # else :
+            #     print('bad')
+            #     print(dataOK, frameNumber, detObj, rangeArray, dopplerArray, rangeDoppler)
+            #     return dataOK, frameNumber, detObj#, ['1'], ['1'], ['1']
+            
+        return dataOK, frameNumber, detObj
+    
     def find_average_point(self, data_ok, detection_obj):
         """ find average point """
         x_value = 0
