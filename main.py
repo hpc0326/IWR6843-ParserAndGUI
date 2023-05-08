@@ -14,21 +14,23 @@ Radar = Radar()
 GUI = GUI()
 
 RADAR_CLI_PORT, RADAR_DATA_PORT, RADAR_CONFIG_FILE_PATH, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME = Utils.get_radar_env()
-cli_serial, data_serial = Radar.start(
+cli_serial, data_serial, radar_parameters = Radar.start(
     RADAR_CLI_PORT, RADAR_DATA_PORT, RADAR_CONFIG_FILE_PATH)
 
 RADAR_POSITION_X, RADAR_POSITION_Y, RADAR_POSITION_Z, GRID_SIZE = Utils.get_gui_env()
-
 
 def radar_thread_function():
     """radar_thread_function"""
     while True:
         data_ok, _, detection_obj = Radar.read_and_parse_radar_data(data_serial)
         avg_pt = Radar.find_average_point(data_ok, detection_obj)
+        doppler_array = Radar.heatmap_handler(data_ok, detection_obj)
         Radar.point_record(
-                data_ok, avg_pt, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, DETECT_DIRECTION)
-        if data_ok:
-            GUI.store_point(avg_pt[:, :3])
+                data_ok, avg_pt, doppler_array, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, DETECT_DIRECTION)
+
+        # if data_ok:
+        #     # print('detection_obj:\n', detection_obj)
+        #     GUI.store_point(avg_pt[:, :3])
 
 radar_thread = Thread(target=radar_thread_function, args=())
 radar_thread.daemon = True

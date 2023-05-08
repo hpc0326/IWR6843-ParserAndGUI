@@ -4,12 +4,14 @@ import time
 import csv
 import serial
 import numpy as np
+import matplotlib.pyplot as plt
 from modules.parser_mmw_demo import parser_one_mmw_demo_output_packet
 # from modules.ti_radar_sdk import parser_one_mmw_demo_output_packet
 
 
 class Radar:
     """ Class: Radar """
+
     def __init__(self):
         self.debug = False
         self.detection = 0
@@ -25,6 +27,10 @@ class Radar:
         self.wave_start_time = 0
         self.wave_end_time = 0
         self.tmp_record_arr = np.zeros((1, 4))
+        self.tmp_doppler_arr = np.zeros((32, 256))
+        self.radar_parameters = {}
+        self.doppler_parameters = {}
+        self.fig = plt.figure()
         print('''[Info] Initialize Radar class ''')
 
     def start(self, radar_cli_port, radar_data_port, radar_config_file_path):
@@ -42,9 +48,10 @@ class Radar:
             cli_serial.write((line+'\n').encode())
             time.sleep(0.01)
 
-        self.parse_radar_config(radar_config)
+        self.radar_parameters = self.parse_radar_config(radar_config)
+        self.doppler_setup()
         print('''[Info] Radar device starting''')
-        return cli_serial, data_serial
+        return cli_serial, data_serial, self.radar_parameters
 
     def parse_radar_config(self, radar_config):
         """ Parsing radar config """
@@ -74,7 +81,8 @@ class Radar:
         num_chirps_per_frame = (
             chirp_end_idx - chirp_start_idx + 1) * num_loops
         radar_parameters["num_frames"] = num_frames
-        radar_parameters["num_doppler_bins"] = num_chirps_per_frame / self.num_tx_ant
+        radar_parameters["num_doppler_bins"] = num_chirps_per_frame / \
+            self.num_tx_ant
         radar_parameters["num_range_bins"] = num_adc_aamples_round_to_2
         radar_parameters["range_resolution_meters"] = (
             3e8 * dig_out_sample_rate * 1e3) / (2 * freq_slope_const * 1e12 * num_adc_samples)
@@ -90,7 +98,7 @@ class Radar:
         print(
             f'''[Info] radar_parameters: {radar_parameters} ''')
         return radar_parameters
-    
+
     def read_and_parse_radar_data(self, data_serial):
         """ read and parse radar data """
         # Initialize variables
@@ -106,7 +114,7 @@ class Radar:
         # Check that the buffer is not full, and then add the data to the buffer
         if (self.byte_buffer_length + byteCount) < self.max_buffer_size:
             self.byte_buffer[self.byte_buffer_length:self.byte_buffer_length +
-                    byteCount] = byteVec[:byteCount]
+                             byteCount] = byteVec[:byteCount]
             self.byte_buffer_length = self.byte_buffer_length + byteCount
 
         # Check that the buffer has some data
@@ -128,21 +136,23 @@ class Radar:
                 # Remove the data before the first start index
                 if startIdx[0] > 0 and startIdx[0] < self.byte_buffer_length:
                     self.byte_buffer[:self.byte_buffer_length-startIdx[0]
-                            ] = self.byte_buffer[startIdx[0]:self.byte_buffer_length]
+                                     ] = self.byte_buffer[startIdx[0]:self.byte_buffer_length]
                     self.byte_buffer[self.byte_buffer_length-startIdx[0]:] = np.zeros(
                         len(self.byte_buffer[self.byte_buffer_length-startIdx[0]:]), dtype='uint8')
-                    self.byte_buffer_length = self.byte_buffer_length - startIdx[0]
+                    self.byte_buffer_length = self.byte_buffer_length - \
+                        startIdx[0]
 
                 # Check that there have no errors with the byte buffer length
                 if self.byte_buffer_length < 0:
                     self.byte_buffer_length = 0
 
                 # Read the total packet length
-                totalPacketLen = np.matmul(self.byte_buffer[12:12+4], self.word)
+                totalPacketLen = np.matmul(
+                    self.byte_buffer[12:12+4], self.word)
                 # Check that all the packet has been read
                 if (self.byte_buffer_length >= totalPacketLen) and (self.byte_buffer_length != 0):
                     magicOK = 1
-        
+
         # If magicOK is equal to 1 then process the message
         if magicOK:
             # Read the entire buffer
@@ -152,7 +162,7 @@ class Radar:
             allBinData = self.byte_buffer
             if (self.debug):
                 print("allBinData: ",
-                    allBinData[0], allBinData[1], allBinData[2], allBinData[3])
+                      allBinData[0], allBinData[1], allBinData[2], allBinData[3])
 
             # init local variables
             totalBytesParsed = 0
@@ -165,21 +175,22 @@ class Radar:
             # parsed data to stdio. So showcasing only saving the data to arrays
             # here for further custom processing
             parser_result, \
-                headerStartIndex,  \
-                totalPacketNumBytes, \
-                numDetObj,  \
-                numTlv,  \
-                subFrameNumber,  \
-                detectedX_array,  \
-                detectedY_array,  \
-                detectedZ_array,  \
-                detectedV_array,  \
-                detectedRange_array,  \
-                detectedAzimuth_array,  \
-                detectedElevation_array,  \
-                detectedSNR_array,  \
-                detectedNoise_array = parser_one_mmw_demo_output_packet(
-                    allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.debug)
+            headerStartIndex,  \
+            totalPacketNumBytes, \
+            numDetObj,  \
+            numTlv,  \
+            subFrameNumber,  \
+            detectedX_array,  \
+            detectedY_array,  \
+            detectedZ_array,  \
+            detectedV_array,  \
+            detectedRange_array,  \
+            detectedAzimuth_array,  \
+            detectedElevation_array,  \
+            detectedSNR_array,  \
+            detectedNoise_array,  \
+            rangeDoppler = parser_one_mmw_demo_output_packet(
+                allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.doppler_parameters ,self.debug)
 
             if (self.debug):
                 print("Parser result: ", parser_result)
@@ -196,18 +207,18 @@ class Radar:
                 ##################################################################################
 
                 detObj = {"numObj": numDetObj, "range": detectedRange_array,
-                        "x": detectedX_array, "y": detectedY_array, "z": detectedZ_array,
-                        "elevation": detectedElevation_array, "snr": detectedSNR_array
-                        }
+                          "x": detectedX_array, "y": detectedY_array, "z": detectedZ_array,
+                          "elevation": detectedElevation_array, "doppler": detectedV_array,
+                          "azimuth": detectedAzimuth_array, "snr": detectedSNR_array, 
+                          "noise": detectedNoise_array, "rangeDoppler": rangeDoppler}
 
                 detSideInfoObj = {"doppler": detectedV_array, "snr": detectedSNR_array,
-                                "noise": detectedNoise_array
-                                }
+                                  "noise": detectedNoise_array}
                 dataOK = 1
 
             shiftSize = totalPacketNumBytes
             self.byte_buffer[:self.byte_buffer_length -
-                    shiftSize] = self.byte_buffer[shiftSize:self.byte_buffer_length]
+                             shiftSize] = self.byte_buffer[shiftSize:self.byte_buffer_length]
             self.byte_buffer[self.byte_buffer_length - shiftSize:] = np.zeros(
                 len(self.byte_buffer[self.byte_buffer_length - shiftSize:]), dtype='uint8')
             self.byte_buffer_length = self.byte_buffer_length - shiftSize
@@ -262,7 +273,7 @@ class Radar:
                 # print('avg_pt:', avg_pt)
                 return avg_pt
 
-    def point_record(self, data_ok, avg_pt, npy_file_dir, npy_file_name, direction):
+    def point_record(self, data_ok, avg_pt, doppler_array, npy_file_dir, npy_file_name, direction):
         """ record gesture point"""
         zero_pt = np.zeros((1, 4))  # for initial zero value
 
@@ -284,6 +295,7 @@ class Radar:
             if (self.wave_end_pt != self.wave_last_pt).all():  # avoid noise point
                 if self.detection != 1:  # avoid duplicate start point
                     self.tmp_record_arr = np.append(self.tmp_record_arr, avg_pt, axis=0)
+                    self.tmp_doppler_arr = np.append(self.tmp_doppler_arr, doppler_array, axis=0)
 
         elif data_ok == 0:
             self.wave_end_time = time.time()
@@ -314,7 +326,7 @@ class Radar:
                                 csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
                             demo_writer.writerow([filename, "right wave"])
                         self.tmp_record_arr = zero_pt
-                
+
                 # up / down detect
                 if direction == 1:
                     if self.wave_end_pt[0][2] > self.wave_start_pt[0][2]:
@@ -346,7 +358,8 @@ class Radar:
                     if (self.wave_end_pt != self.wave_start_pt).all():
                         print("others")
                         with open('mmw_demo_output.csv', 'a+', newline='', encoding='utf-8') as democsvfile:
-                            demo_output_writer = csv.writer(democsvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
+                            demo_output_writer = csv.writer(
+                                democsvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
                             demo_output_writer.writerow(["others"])
 
                 self.detection = 0
@@ -363,7 +376,32 @@ class Radar:
         for i in range(arr_len):
             new_arr[i][3] = new_arr[i][3] - stime
         return new_arr
-    
+
+    def doppler_setup(self):
+        """setup doppler"""
+        num_doppler_bins = int(self.radar_parameters["num_doppler_bins"])
+        num_range_bins = self.radar_parameters["num_range_bins"]
+        range_array = np.array(range(num_range_bins))*self.radar_parameters["range_idx_to_meters"]
+        doppler_array = np.multiply(np.arange(-num_doppler_bins/2 , num_doppler_bins/2), self.radar_parameters["doppler_resolution_mps"])
+        num_bytes = 2 * num_range_bins * num_doppler_bins
+
+        self.doppler_parameters = {"num_doppler_bins": num_doppler_bins, "num_range_bins": num_range_bins, "num_bytes": num_bytes,
+                                   "range_array": range_array, "doppler_array": doppler_array}
+        print(self.doppler_parameters)
+
+    def heatmap_handler(self, data_ok, detection_obj):
+        """handle heatmap"""
+        if data_ok:
+            print("------------heatmap_handler------------\n", detection_obj["rangeDoppler"])
+            plt.clf()
+            levels = np.linspace(0, 4000, num=40)
+            heatmap = plt.contourf(self.doppler_parameters["range_array"], self.doppler_parameters["doppler_array"], detection_obj["rangeDoppler"], levels=levels, cmap='rainbow')
+            self.fig.colorbar(heatmap, shrink=0.9)
+            self.fig.canvas.draw()
+            plt.savefig("RangeDoppler_Heatmap.png")
+            return detection_obj["rangeDoppler"]
+
+
     # def read_and_parse_radar_data(self, data_serial):
     #     ''' read_and_parse_data '''
     #     # 讀取雷達數據
@@ -446,5 +484,3 @@ class Radar:
     #             "snr": detectedSNR_array
     #         }
     #         print(detObj)
-    
-    

@@ -35,6 +35,7 @@ import struct
 import math
 import binascii
 import codecs
+import csv
 import numpy as np
 from modules.parser_module.data_parser import getHex, getUint16, getUint32
 
@@ -107,7 +108,7 @@ def parser_helper(data, readNumBytes,debug=False):
     return (headerStartIndex, totalPacketNumBytes, numDetObj, numTlv, subFrameNumber)
 
 
-def parser_one_mmw_demo_output_packet(data, readNumBytes,debug=False):
+def parser_one_mmw_demo_output_packet(data, readNumBytes, dopplerParameters, debug=False):
     """!
        This function is called by application. Firstly it calls parser_helper() function to find the start location of the mmw demo output packet, then extract the contents from the output packet.
        Each invocation of this function handles only one frame at a time and user needs to manage looping around to parse data for multiple frames.
@@ -145,6 +146,7 @@ def parser_one_mmw_demo_output_packet(data, readNumBytes,debug=False):
     detectedElevAngle_array = []
     detectedSNR_array = []
     detectedNoise_array = []
+    rangeDoppler = []
 
     result = TC_PASS
 
@@ -176,14 +178,18 @@ def parser_one_mmw_demo_output_packet(data, readNumBytes,debug=False):
             tlvType    = getUint32(data[tlvStart+0:tlvStart+4:1])
             tlvLen     = getUint32(data[tlvStart+4:tlvStart+8:1])       
             offset = 8
-            if(debug):        
-                print("The 1st TLV") 
+            if (debug):        
+                print("The 1st TLV")
                 print("    type %d" % (tlvType))
                 print("    len %d bytes" % (tlvLen))
+
+            # with open("datacsv.csv", 'w', newline='') as f:
+            #     writer = csv.writer(f, delimiter=',')
+            #     writer.writerow(data)
                                                     
             # the 1st TLV must be type 1
             if tlvType == 1 and tlvLen < totalPacketNumBytes:#MMWDEMO_UART_MSG_DETECTED_POINTS
-                         
+                
                 # TLV type 1 contains x, y, z, v values of all detect objects. 
                 # each x, y, z, v are 32-bit float in IEEE 754 single-precision binary floating-point format, so every 16 bytes represent x, y, z, v values of one detect objects.    
                 
@@ -240,12 +246,13 @@ def parser_one_mmw_demo_output_packet(data, readNumBytes,debug=False):
             tlvLen     = getUint32(data[tlvStart+4:tlvStart+8:1])      
             offset = 8
 
-            if(debug):        
+            if (debug):        
                 print("The 2nd TLV") 
                 print("    type %d" % (tlvType))
                 print("    len %d bytes" % (tlvLen))
-                                                            
-                                                            
+            
+                                             
+                                                
             if tlvType == 7: 
                 
                 # TLV type 7 contains snr and noise of all detect objects.
@@ -272,18 +279,35 @@ def parser_one_mmw_demo_output_packet(data, readNumBytes,debug=False):
                 for obj in range(numDetObj):
                     print("    obj%3d: %12f %12f %12f %12f %12f %12f %12d %12d %12d" % (obj, detectedX_array[obj], detectedY_array[obj], detectedZ_array[obj], detectedV_array[obj], detectedRange_array[obj], detectedAzimuth_array[obj], detectedElevAngle_array[obj], detectedSNR_array[obj], detectedNoise_array[obj]))
                 
-    return (result, headerStartIndex, totalPacketNumBytes, numDetObj, numTlv, subFrameNumber, detectedX_array, detectedY_array, detectedZ_array, detectedV_array, detectedRange_array, detectedAzimuth_array, detectedElevAngle_array, detectedSNR_array, detectedNoise_array)
+            
+            tlvStart = tlvStart + 8 + tlvLen
+                                                    
+            tlvType    = getUint32(data[tlvStart+0:tlvStart+4:1])
+            tlvLen     = getUint32(data[tlvStart+4:tlvStart+8:1])      
+            offset = 8
 
+            if (debug):        
+                print("The 3rd TLV") 
+                print("    type %d" % (tlvType))
+                print("    len %d bytes" % (tlvLen))
 
+            if tlvType == 5:
+                numBytes = dopplerParameters["num_bytes"]
+                payload = data[tlvStart:tlvStart + numBytes]
+                tlvStart += numBytes
+                rangeDoppler = payload.view(dtype=np.int16)
 
+                if np.max(rangeDoppler) > 10000:
+                    pass
 
-    
+                rangeDoppler = np.reshape(rangeDoppler, (dopplerParameters["num_doppler_bins"], dopplerParameters["num_range_bins"]),'F') #Fortran-like reshape
+                rangeDoppler = np.append(rangeDoppler[int(len(rangeDoppler)/2):], rangeDoppler[:int(len(rangeDoppler)/2)], axis=0)
 
+                # print("rangeArray:\n", dopplerParameters["range_array"], " shape: ", dopplerParameters["range_array"].shape)
+                # print("dopplerArray:\n", dopplerParameters["doppler_array"], " shape: ", dopplerParameters["doppler_array"].shape)
+                # print("rangeDoppler:\n", rangeDoppler, " shape: ", rangeDoppler.shape)
 
-
-
-
-
-
-
-
+    return (result, headerStartIndex, totalPacketNumBytes, numDetObj,
+            numTlv, subFrameNumber, detectedX_array, detectedY_array, detectedZ_array, detectedV_array,
+            detectedRange_array, detectedAzimuth_array, detectedElevAngle_array,
+            detectedSNR_array, detectedNoise_array, rangeDoppler)
