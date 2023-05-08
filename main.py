@@ -34,7 +34,7 @@ def process():
         Radar.point_record(
                 dataOk, avg_pt, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, DETECT_DIRECTION)
         
-        if dataOk and POINT_CLOUD_GUI :
+        if dataOk and POINT_CLOUD_GUI and not HEATMAP_GUI:
             GUI.store_point(avg_pt[:, :3])
             
         if dataOk and HEATMAP_GUI and not POINT_CLOUD_GUI:

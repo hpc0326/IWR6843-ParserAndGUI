@@ -46,7 +46,7 @@ class HEATMAP():
 
     def update(self):
         self.data = self.dopplerAry
-        self.image.setImage(self.data)
+        self.image.setImage(self.data) #test with updateImage
         #print doppler array
         print(self.data)
 
