@@ -4,6 +4,8 @@ from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 import pyqtgraph.opengl as gl
 import pyqtgraph as pg
 import numpy as np
+from colour import Color
+
 
 class GUI():
     ''' Class GUI '''
@@ -12,6 +14,17 @@ class GUI():
         self.point_cloud = None
         self.point_data = np.array([[0.0 ,0.0 ,0.0]])
         print('''[Info] Initialize GUI class ''')
+
+        self.colors = list(Color("purple").range_to(Color("red"), 256))
+        self.colors_array = np.array([np.array(color.get_rgb()) * 255 for color in self.colors])
+        self.look_up_table = self.colors_array.astype(np.uint8)
+        self.range_doppler_data = np.zeros((32, 256))
+        self.range_array = None
+        self.doppler_array = None
+        self.range_doppler = None
+        self.heatmap = None
+        print('''[Info] Initialize HEATMAP class ''')
+
 
     def start(self, radar_position_x, radar_position_y, radar_position_z, grid_size):
         """ start """
@@ -28,6 +41,20 @@ class GUI():
         self.initialize_point_cloud(gl_view)
         timer = QtCore.QTimer()
         self.set_timer(timer)
+
+        window = pg.GraphicsLayoutWidget()
+        self.heatmap = pg.ImageItem()
+        self.heatmap.setLookupTable(self.look_up_table)  # Add
+        self.heatmap.setImage(self.range_doppler_data)
+        view_box = pg.ViewBox()
+        view_box.addItem(self.heatmap)
+        plot = pg.PlotItem(viewBox=view_box)
+        window.addItem(plot)
+        
+        # timer = QtCore.QTimer()
+        # self.setTimer(timer)
+        window.show()
+
         if sys.flags.interactive != 1:
             if not hasattr(QtCore, 'PYQT_VERSION'):
                 QtWidgets.QApplication.instance().exec()
@@ -103,6 +130,8 @@ class GUI():
     def update_point(self):
         """ update_point """
         self.point_cloud.setData(pos=self.point_data)
+        self.range_doppler_data = self.range_doppler
+        self.heatmap.setImage(self.range_doppler_data)
 
     def set_timer(self, timer):
         """ set_timer """
@@ -113,4 +142,9 @@ class GUI():
         """ store_point """
         self.point_data = point
         print(point)
-    
+
+    def save_data(self, range_array, doppler_array, range_doppler):
+        self.range_array = range_array #useless
+        self.doppler_array = doppler_array #useless
+        self.range_doppler = np.transpose(range_doppler) 
+        

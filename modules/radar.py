@@ -49,7 +49,9 @@ class Radar:
             time.sleep(0.01)
 
         self.radar_parameters = self.parse_radar_config(radar_config)
-        self.doppler_setup()
+        self.doppler_parameters = self.doppler_setup()
+        self.radar_parameters['doppler_parameters'] = self.doppler_parameters
+        print("self.radar_parameters", self.radar_parameters['doppler_parameters'])
         print('''[Info] Radar device starting''')
         return cli_serial, data_serial, self.radar_parameters
 
@@ -87,7 +89,7 @@ class Radar:
         radar_parameters["range_resolution_meters"] = (
             3e8 * dig_out_sample_rate * 1e3) / (2 * freq_slope_const * 1e12 * num_adc_samples)
         radar_parameters["range_idx_to_meters"] = (3e8 * dig_out_sample_rate * 1e3) / (
-            2 * freq_slope_const * 1e12 * radar_parameters["num_doppler_bins"])
+            2 * freq_slope_const * 1e12 * radar_parameters["num_range_bins"])
         radar_parameters["doppler_resolution_mps"] = 3e8 / (2 * start_freq * 1e9 * (
             idle_time + ramp_end_time) * 1e-6 * radar_parameters["num_doppler_bins"] * self.num_tx_ant)
         radar_parameters["max_range"] = (
@@ -216,6 +218,8 @@ class Radar:
                                   "noise": detectedNoise_array}
                 dataOK = 1
 
+                print({"x": detectedX_array[0], "y": detectedY_array[0], "z": detectedZ_array[0], "doppler": detectedV_array[0]})
+
             shiftSize = totalPacketNumBytes
             self.byte_buffer[:self.byte_buffer_length -
                              shiftSize] = self.byte_buffer[shiftSize:self.byte_buffer_length]
@@ -295,7 +299,6 @@ class Radar:
             if (self.wave_end_pt != self.wave_last_pt).all():  # avoid noise point
                 if self.detection != 1:  # avoid duplicate start point
                     self.tmp_record_arr = np.append(self.tmp_record_arr, avg_pt, axis=0)
-                    self.tmp_doppler_arr = np.append(self.tmp_doppler_arr, doppler_array, axis=0)
 
         elif data_ok == 0:
             self.wave_end_time = time.time()
@@ -385,102 +388,20 @@ class Radar:
         doppler_array = np.multiply(np.arange(-num_doppler_bins/2 , num_doppler_bins/2), self.radar_parameters["doppler_resolution_mps"])
         num_bytes = 2 * num_range_bins * num_doppler_bins
 
-        self.doppler_parameters = {"num_doppler_bins": num_doppler_bins, "num_range_bins": num_range_bins, "num_bytes": num_bytes,
+        doppler_parameters = {"num_doppler_bins": num_doppler_bins, "num_range_bins": num_range_bins, "num_bytes": num_bytes,
                                    "range_array": range_array, "doppler_array": doppler_array}
         print(self.doppler_parameters)
+        return doppler_parameters
 
     def heatmap_handler(self, data_ok, detection_obj):
         """handle heatmap"""
         if data_ok:
-            print("------------heatmap_handler------------\n", detection_obj["rangeDoppler"])
+            # print("------------heatmap_handler------------\n", detection_obj["rangeDoppler"])
             plt.clf()
             levels = np.linspace(0, 4000, num=40)
             heatmap = plt.contourf(self.doppler_parameters["range_array"], self.doppler_parameters["doppler_array"], detection_obj["rangeDoppler"], levels=levels, cmap='rainbow')
+            # heatmap = plt.contourf(self.doppler_parameters["doppler_array"], self.doppler_parameters["range_array"], detection_obj["rangeDoppler"], levels=levels, cmap='rainbow')
             self.fig.colorbar(heatmap, shrink=0.9)
             self.fig.canvas.draw()
             plt.savefig("RangeDoppler_Heatmap.png")
             return detection_obj["rangeDoppler"]
-
-
-    # def read_and_parse_radar_data(self, data_serial):
-    #     ''' read_and_parse_data '''
-    #     # 讀取雷達數據
-    #     radar_data = data_serial.read(data_serial.in_waiting)
-    #     radar_data_np = np.frombuffer(radar_data, dtype='uint8')
-    #     radar_data_lenth = len(radar_data_np)
-    #     # 將數據添加到緩存區
-    #     self.end_index = self.end_index + radar_data_lenth
-    #     if self.end_index < self.max_buffer_size:
-    #         # 確保radar_data_np和self.radar_data_buffer尺寸一致
-    #         if self.end_index + radar_data_lenth > self.max_buffer_size:
-    #             radar_data_lenth = self.max_buffer_size - self.end_index
-    #             radar_data_np = radar_data_np[:radar_data_lenth]
-    #             self.radar_data_buffer[self.start_index:self.end_index] = radar_data_np[:]
-    #     # 大於16個字節，才開始檢查檢查緩存區是否有數據
-    #     if self.end_index > 16:
-    #         # 查找魔術字節的所有可能位置
-    #         possible_locs = np.where(
-    #             self.radar_data_buffer == self.magic_word[0])[0]
-    #         # 確定魔術字節的開始位置，並將其儲存到start_idx
-    #         start_idx = []
-    #         for loc in possible_locs:
-    #             check = self.radar_data_buffer[loc:loc+8]
-    #             if np.all(check == self.magic_word):  # 都符合magic number
-    #                 start_idx.append(loc)
-    #         # 檢查start_idx是否為空
-    #         if start_idx:
-    #             # 移除第一個魔術字節之前的數據
-    #             if start_idx[0] > 0:
-    #                 if start_idx[0] < self.end_index:
-    #                     self.radar_data_buffer[:self.end_index-start_idx[0]
-    #                                            ] = self.radar_data_buffer[start_idx[0]:self.end_index]
-    #                     self.radar_data_buffer[self.end_index-start_idx[0]:] = np.zeros(
-    #                         len(self.radar_data_buffer[self.end_index-start_idx[0]:]), dtype='uint8')
-    #                     self.end_index = self.end_index - start_idx[0]
-    #             # 確認緩衝區長度沒有錯誤
-    #             self.end_index = max(self.end_index, 0)
-    #             # 讀取數據包的總長度
-    #             total_packet_len = np.matmul(
-    #                 self.radar_data_buffer[12:16], self.word)
-    #             # 檢查是否已讀取整個數據包
-    #             if self.end_index >= total_packet_len:
-    #                 if self.end_index != 0:
-    #                     self.magic_flag = True
-    #     # 如果 magic_flag 為 True，則處理消息
-    #     if self.magic_flag:
-    #         # 讀取整個緩衝區
-    #         print(f'''radar_data_lenth: {radar_data_lenth}''')
-    #         print(f'''radar_data_buffer: {self.radar_data_buffer} ''')
-
-    #         # init local variables
-    #         start_idx = 0
-    #         numFramesParsed = 0
-    #         DEBUG = True
-
-    #         parser_result, \
-    #             headerStartIndex,  \
-    #             totalPacketNumBytes, \
-    #             numDetObj,  \
-    #             numTlv,  \
-    #             subFrameNumber,  \
-    #             detectedX_array,  \
-    #             detectedY_array,  \
-    #             detectedZ_array,  \
-    #             detectedV_array,  \
-    #             detectedRange_array,  \
-    #             detectedAzimuth_array,  \
-    #             detectedElevation_array,  \
-    #             detectedSNR_array,  \
-    #             detectedNoise_array = parser_one_mmw_demo_output_packet(
-    #                 self.radar_data_buffer[::], self.end_index, DEBUG)
-
-    #         detObj = {
-    #             "numObj": numDetObj,
-    #             "range": detectedRange_array,
-    #             "x": detectedX_array,
-    #             "y": detectedY_array,
-    #             "z": detectedZ_array,
-    #             "elevation": detectedElevation_array,
-    #             "snr": detectedSNR_array
-    #         }
-    #         print(detObj)

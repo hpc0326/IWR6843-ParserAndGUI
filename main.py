@@ -3,10 +3,18 @@ from threading import Thread
 from modules.utils import Utils
 from modules.radar import Radar
 from modules.gui import GUI
-
+# from modules.heatmap import HEATMAP
+import time
+import numpy as np
+from threading import Thread
 
 # 0: left / right detection; 1: up / down detection; 2: other detection
 DETECT_DIRECTION = 0
+#Point Cloud GUI
+POINT_CLOUD_GUI = 1
+#Heatmap GUI
+HEATMAP_GUI = 0
+
 
 # Initialize classes
 Utils = Utils()
@@ -31,9 +39,18 @@ def radar_thread_function():
         # if data_ok:
         #     # print('detection_obj:\n', detection_obj)
         #     GUI.store_point(avg_pt[:, :3])
+        if data_ok and POINT_CLOUD_GUI and not HEATMAP_GUI:
+            GUI.store_point(avg_pt[:, :3])
+            GUI.save_data(radar_parameters['doppler_parameters']['range_array'], radar_parameters['doppler_parameters']['doppler_array'], detection_obj['rangeDoppler'])
 
-radar_thread = Thread(target=radar_thread_function, args=())
-radar_thread.daemon = True
-radar_thread.start()
+# radar_thread = Thread(target=radar_thread_function, args=())
+# radar_thread.daemon = True
+# radar_thread.start()
 
-GUI.start(RADAR_POSITION_X, RADAR_POSITION_Y, RADAR_POSITION_Z, GRID_SIZE)
+# GUI.start(RADAR_POSITION_X, RADAR_POSITION_Y, RADAR_POSITION_Z, GRID_SIZE)
+
+if POINT_CLOUD_GUI:
+    radar_thread = Thread(target=radar_thread_function, args=())
+    radar_thread.daemon = True
+    radar_thread.start()
+    GUI.start(RADAR_POSITION_X, RADAR_POSITION_Y, RADAR_POSITION_Z, GRID_SIZE)

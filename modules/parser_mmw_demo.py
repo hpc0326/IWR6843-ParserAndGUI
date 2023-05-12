@@ -283,7 +283,7 @@ def parser_one_mmw_demo_output_packet(data, readNumBytes, dopplerParameters, deb
             tlvStart = tlvStart + 8 + tlvLen
                                                     
             tlvType    = getUint32(data[tlvStart+0:tlvStart+4:1])
-            tlvLen     = getUint32(data[tlvStart+4:tlvStart+8:1])      
+            tlvLen     = getUint32(data[tlvStart+4:tlvStart+8:1])
             offset = 8
 
             if (debug):        
@@ -293,15 +293,19 @@ def parser_one_mmw_demo_output_packet(data, readNumBytes, dopplerParameters, deb
 
             if tlvType == 5:
                 numBytes = dopplerParameters["num_bytes"]
-                payload = data[tlvStart:tlvStart + numBytes]
+                payload = data[tlvStart + offset:tlvStart + offset + numBytes]
                 tlvStart += numBytes
                 rangeDoppler = payload.view(dtype=np.int16)
 
-                if np.max(rangeDoppler) > 10000:
-                    pass
+                # if np.max(rangeDoppler) > 10000:
+                #     pass
 
                 rangeDoppler = np.reshape(rangeDoppler, (dopplerParameters["num_doppler_bins"], dopplerParameters["num_range_bins"]),'F') #Fortran-like reshape
                 rangeDoppler = np.append(rangeDoppler[int(len(rangeDoppler)/2):], rangeDoppler[:int(len(rangeDoppler)/2)], axis=0)
+
+                # with open("rangeDoppler.csv", 'w', newline='', encoding='utf-8') as f:
+                #     writer = csv.writer(f, delimiter=',', lineterminator='\n')
+                #     writer.writerow(rangeDoppler)
 
                 # print("rangeArray:\n", dopplerParameters["range_array"], " shape: ", dopplerParameters["range_array"].shape)
                 # print("dopplerArray:\n", dopplerParameters["doppler_array"], " shape: ", dopplerParameters["doppler_array"].shape)
