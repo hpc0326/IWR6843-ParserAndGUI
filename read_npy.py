@@ -80,5 +80,5 @@ if __name__ == '__main__':
     gesture_dataframe, file_path = read_data(file_number)
     print(gesture_dataframe)
     animation = animate(file_path, gesture_dataframe, interval=33)
-    animation.save('PointCloud_animation.gif')
+    animation.save('radar_data_gif/PointCloud_animation.gif')
     # plt.show()  # 打開 3D 圖的視窗

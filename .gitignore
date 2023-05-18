@@ -143,6 +143,12 @@ Pipfile.lock
 !radar_data/
 radar_data/*
 !radar_data/.gitkeep
+!radar_data_csv/
+radar_data_csv/*
+!radar_data_csv/.gitkeep
+!radar_data_gif/
+radar_data_gif/*
+!radar_data_gif/.gitkeep
 *.csv
 *.npy
 *.gif

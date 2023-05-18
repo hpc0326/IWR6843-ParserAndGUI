@@ -298,7 +298,7 @@ class Radar:
                         filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
                         new_arr = self.change_time_unit(self.tmp_record_arr)
                         np.save(filename, new_arr)
-                        with open('np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
+                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
                             demo_writer = csv.writer(
                                 csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
                             demo_writer.writerow([filename, "left wave"])
@@ -309,7 +309,7 @@ class Radar:
                         filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
                         new_arr = self.change_time_unit(self.tmp_record_arr)
                         np.save(filename, new_arr)
-                        with open('np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
+                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
                             demo_writer = csv.writer(
                                 csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
                             demo_writer.writerow([filename, "right wave"])
@@ -323,7 +323,7 @@ class Radar:
                         filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
                         new_arr = self.change_time_unit(self.tmp_record_arr)
                         np.save(filename, new_arr)
-                        with open('np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
+                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
                             demo_writer = csv.writer(
                                 csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
                             demo_writer.writerow([filename, "up wave"])
@@ -335,7 +335,7 @@ class Radar:
                         filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
                         new_arr = self.change_time_unit(self.tmp_record_arr)
                         np.save(filename, new_arr)
-                        with open('np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
+                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
                             demo_writer = csv.writer(
                                 csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
                             demo_writer.writerow([filename, "down wave"])
@@ -345,7 +345,7 @@ class Radar:
                 if direction == 2:
                     if (self.wave_end_pt != self.wave_start_pt).all():
                         print("others")
-                        with open('mmw_demo_output.csv', 'a+', newline='', encoding='utf-8') as democsvfile:
+                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as democsvfile:
                             demo_output_writer = csv.writer(democsvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
                             demo_output_writer.writerow(["others"])
 
@@ -363,88 +363,3 @@ class Radar:
         for i in range(arr_len):
             new_arr[i][3] = new_arr[i][3] - stime
         return new_arr
-    
-    # def read_and_parse_radar_data(self, data_serial):
-    #     ''' read_and_parse_data '''
-    #     # 讀取雷達數據
-    #     radar_data = data_serial.read(data_serial.in_waiting)
-    #     radar_data_np = np.frombuffer(radar_data, dtype='uint8')
-    #     radar_data_lenth = len(radar_data_np)
-    #     # 將數據添加到緩存區
-    #     self.end_index = self.end_index + radar_data_lenth
-    #     if self.end_index < self.max_buffer_size:
-    #         # 確保radar_data_np和self.radar_data_buffer尺寸一致
-    #         if self.end_index + radar_data_lenth > self.max_buffer_size:
-    #             radar_data_lenth = self.max_buffer_size - self.end_index
-    #             radar_data_np = radar_data_np[:radar_data_lenth]
-    #             self.radar_data_buffer[self.start_index:self.end_index] = radar_data_np[:]
-    #     # 大於16個字節，才開始檢查檢查緩存區是否有數據
-    #     if self.end_index > 16:
-    #         # 查找魔術字節的所有可能位置
-    #         possible_locs = np.where(
-    #             self.radar_data_buffer == self.magic_word[0])[0]
-    #         # 確定魔術字節的開始位置，並將其儲存到start_idx
-    #         start_idx = []
-    #         for loc in possible_locs:
-    #             check = self.radar_data_buffer[loc:loc+8]
-    #             if np.all(check == self.magic_word):  # 都符合magic number
-    #                 start_idx.append(loc)
-    #         # 檢查start_idx是否為空
-    #         if start_idx:
-    #             # 移除第一個魔術字節之前的數據
-    #             if start_idx[0] > 0:
-    #                 if start_idx[0] < self.end_index:
-    #                     self.radar_data_buffer[:self.end_index-start_idx[0]
-    #                                            ] = self.radar_data_buffer[start_idx[0]:self.end_index]
-    #                     self.radar_data_buffer[self.end_index-start_idx[0]:] = np.zeros(
-    #                         len(self.radar_data_buffer[self.end_index-start_idx[0]:]), dtype='uint8')
-    #                     self.end_index = self.end_index - start_idx[0]
-    #             # 確認緩衝區長度沒有錯誤
-    #             self.end_index = max(self.end_index, 0)
-    #             # 讀取數據包的總長度
-    #             total_packet_len = np.matmul(
-    #                 self.radar_data_buffer[12:16], self.word)
-    #             # 檢查是否已讀取整個數據包
-    #             if self.end_index >= total_packet_len:
-    #                 if self.end_index != 0:
-    #                     self.magic_flag = True
-    #     # 如果 magic_flag 為 True，則處理消息
-    #     if self.magic_flag:
-    #         # 讀取整個緩衝區
-    #         print(f'''radar_data_lenth: {radar_data_lenth}''')
-    #         print(f'''radar_data_buffer: {self.radar_data_buffer} ''')
-
-    #         # init local variables
-    #         start_idx = 0
-    #         numFramesParsed = 0
-    #         DEBUG = True
-
-    #         parser_result, \
-    #             headerStartIndex,  \
-    #             totalPacketNumBytes, \
-    #             numDetObj,  \
-    #             numTlv,  \
-    #             subFrameNumber,  \
-    #             detectedX_array,  \
-    #             detectedY_array,  \
-    #             detectedZ_array,  \
-    #             detectedV_array,  \
-    #             detectedRange_array,  \
-    #             detectedAzimuth_array,  \
-    #             detectedElevation_array,  \
-    #             detectedSNR_array,  \
-    #             detectedNoise_array = parser_one_mmw_demo_output_packet(
-    #                 self.radar_data_buffer[::], self.end_index, DEBUG)
-
-    #         detObj = {
-    #             "numObj": numDetObj,
-    #             "range": detectedRange_array,
-    #             "x": detectedX_array,
-    #             "y": detectedY_array,
-    #             "z": detectedZ_array,
-    #             "elevation": detectedElevation_array,
-    #             "snr": detectedSNR_array
-    #         }
-    #         print(detObj)
-    
-    
