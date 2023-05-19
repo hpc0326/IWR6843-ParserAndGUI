@@ -37,6 +37,8 @@ import binascii
 import codecs
 import numpy as np
 from modules.parser_module.data_parser import getHex, getUint16, getUint32
+import matplotlib.pyplot as plt
+
 
 # definations for parser pass/fail
 TC_PASS   =  0
@@ -107,7 +109,7 @@ def parser_helper(data, readNumBytes,debug=False):
     return (headerStartIndex, totalPacketNumBytes, numDetObj, numTlv, subFrameNumber)
 
 
-def parser_one_mmw_demo_output_packet(data, readNumBytes,debug=False):
+def parser_one_mmw_demo_output_packet(data, readNumBytes, configParameters, debug=False):
     """!
        This function is called by application. Firstly it calls parser_helper() function to find the start location of the mmw demo output packet, then extract the contents from the output packet.
        Each invocation of this function handles only one frame at a time and user needs to manage looping around to parse data for multiple frames.
@@ -145,7 +147,10 @@ def parser_one_mmw_demo_output_packet(data, readNumBytes,debug=False):
     detectedElevAngle_array = []
     detectedSNR_array = []
     detectedNoise_array = []
-
+    rangeArray = []
+    dopplerArray = []
+    rangeDoppler = []
+    
     result = TC_PASS
 
     # call parser_helper() function to find the output packet header start location and packet size 
@@ -183,7 +188,7 @@ def parser_one_mmw_demo_output_packet(data, readNumBytes,debug=False):
                                                     
             # the 1st TLV must be type 1
             if tlvType == 1 and tlvLen < totalPacketNumBytes:#MMWDEMO_UART_MSG_DETECTED_POINTS
-                         
+                
                 # TLV type 1 contains x, y, z, v values of all detect objects. 
                 # each x, y, z, v are 32-bit float in IEEE 754 single-precision binary floating-point format, so every 16 bytes represent x, y, z, v values of one detect objects.    
                 
@@ -244,8 +249,9 @@ def parser_one_mmw_demo_output_packet(data, readNumBytes,debug=False):
                 print("The 2nd TLV") 
                 print("    type %d" % (tlvType))
                 print("    len %d bytes" % (tlvLen))
-                                                            
-                                                            
+            
+                                             
+                                                
             if tlvType == 7: 
                 
                 # TLV type 7 contains snr and noise of all detect objects.
@@ -266,24 +272,48 @@ def parser_one_mmw_demo_output_packet(data, readNumBytes,debug=False):
                 for obj in range(numDetObj):
                     detectedSNR_array.append(0)
                     detectedNoise_array.append(0)
+                
+            
+            tlvStart = tlvStart + 8 + tlvLen
+                                                    
+            tlvType    = getUint32(data[tlvStart+0:tlvStart+4:1])
+            tlvLen     = getUint32(data[tlvStart+4:tlvStart+8:1])      
+            offset = 8
+
+            if(debug):        
+                print("The 3rd TLV") 
+                print("    type %d" % (tlvType))
+                print("    len %d bytes" % (tlvLen))
+            
+            #tlv for heatmap. rangeArray, dopplerArray are included
+            if tlvType == 5:
+        
+                num_doppler_bins = int(configParameters["num_doppler_bins"])
+                num_range_bins = configParameters["num_range_bins"]
+                numBytes = 2*num_range_bins*num_doppler_bins
+                
+                payload = data[tlvStart:tlvStart + numBytes]
+                
+                tlvStart += numBytes
+                
+                rangeDoppler = payload.view(dtype=np.int16)
+                
+                if np.max(rangeDoppler) > 10000:
+                    pass
+         
+                rangeDoppler = np.reshape(rangeDoppler, (num_doppler_bins, num_range_bins),'F') #Fortran-like reshape
+                rangeDoppler = np.append(rangeDoppler[int(len(rangeDoppler)/2):], rangeDoppler[:int(len(rangeDoppler)/2)], axis=0)
+                rangeArray = np.array(range(num_range_bins))*configParameters["range_idx_to_meters"]
+                dopplerArray = np.multiply(np.arange(-num_doppler_bins/2 , num_doppler_bins/2), configParameters["doppler_resolution_mps"])
+
+                if(debug):
+                    print("rangeArray: ", rangeArray, "dopplerArray: ", dopplerArray,"rangeDoppler: ", rangeDoppler)
+            
             # end of if tlvType == 7
             if(debug):           
                 print("                  x(m)         y(m)         z(m)        v(m/s)    Com0range(m)  azimuth(deg)  elevAngle(deg)  snr(0.1dB)    noise(0.1dB)")
                 for obj in range(numDetObj):
                     print("    obj%3d: %12f %12f %12f %12f %12f %12f %12d %12d %12d" % (obj, detectedX_array[obj], detectedY_array[obj], detectedZ_array[obj], detectedV_array[obj], detectedRange_array[obj], detectedAzimuth_array[obj], detectedElevAngle_array[obj], detectedSNR_array[obj], detectedNoise_array[obj]))
                 
-    return (result, headerStartIndex, totalPacketNumBytes, numDetObj, numTlv, subFrameNumber, detectedX_array, detectedY_array, detectedZ_array, detectedV_array, detectedRange_array, detectedAzimuth_array, detectedElevAngle_array, detectedSNR_array, detectedNoise_array)
-
-
-
-
-    
-
-
-
-
-
-
-
-
-
+                
+    return (result, headerStartIndex, totalPacketNumBytes, numDetObj, numTlv, subFrameNumber, detectedX_array, detectedY_array, detectedZ_array, detectedV_array, detectedRange_array, detectedAzimuth_array, detectedElevAngle_array, detectedSNR_array, detectedNoise_array, rangeArray, dopplerArray, rangeDoppler)

@@ -6,7 +6,7 @@ import serial
 import numpy as np
 from modules.parser_mmw_demo import parser_one_mmw_demo_output_packet
 # from modules.ti_radar_sdk import parser_one_mmw_demo_output_packet
-
+import matplotlib as plt
 
 class Radar:
     """ Class: Radar """
@@ -25,6 +25,7 @@ class Radar:
         self.wave_start_time = 0
         self.wave_end_time = 0
         self.tmp_record_arr = np.zeros((1, 4))
+        self.radar_parameters = {}
         print('''[Info] Initialize Radar class ''')
 
     def start(self, radar_cli_port, radar_data_port, radar_config_file_path):
@@ -42,7 +43,7 @@ class Radar:
             cli_serial.write((line+'\n').encode())
             time.sleep(0.01)
 
-        self.parse_radar_config(radar_config)
+        self.radar_parameters = self.parse_radar_config(radar_config)
         print('''[Info] Radar device starting''')
         return cli_serial, data_serial
 
@@ -143,6 +144,9 @@ class Radar:
                 if (self.byte_buffer_length >= totalPacketLen) and (self.byte_buffer_length != 0):
                     magicOK = 1
         
+        rangeArray = []
+        dopplerArray = []
+        rangeDoppler = []
         # If magicOK is equal to 1 then process the message
         if magicOK:
             # Read the entire buffer
@@ -165,22 +169,30 @@ class Radar:
             # parsed data to stdio. So showcasing only saving the data to arrays
             # here for further custom processing
             parser_result, \
-                headerStartIndex,  \
-                totalPacketNumBytes, \
-                numDetObj,  \
-                numTlv,  \
-                subFrameNumber,  \
-                detectedX_array,  \
-                detectedY_array,  \
-                detectedZ_array,  \
-                detectedV_array,  \
-                detectedRange_array,  \
-                detectedAzimuth_array,  \
-                detectedElevation_array,  \
-                detectedSNR_array,  \
-                detectedNoise_array = parser_one_mmw_demo_output_packet(
-                    allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.debug)
+            headerStartIndex,  \
+            totalPacketNumBytes, \
+            numDetObj,  \
+            numTlv,  \
+            subFrameNumber,  \
+            detectedX_array,  \
+            detectedY_array,  \
+            detectedZ_array,  \
+            detectedV_array,  \
+            detectedRange_array,  \
+            detectedAzimuth_array,  \
+            detectedElevation_array,  \
+            detectedSNR_array,  \
+            detectedNoise_array,\
+            rangeArray,\
+            dopplerArray,\
+            rangeDoppler = parser_one_mmw_demo_output_packet(
+                allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.radar_parameters, self.debug)
+            # print('#####detectRangeAry#######')
+            # print(detectedRange_array)
+            # print('#######detectedV_array############')
+            # print(detectedV_array)
 
+            
             if (self.debug):
                 print("Parser result: ", parser_result)
             if (parser_result == 0):
@@ -197,7 +209,10 @@ class Radar:
 
                 detObj = {"numObj": numDetObj, "range": detectedRange_array, "doppler": detectedV_array,
                         "x": detectedX_array, "y": detectedY_array, "z": detectedZ_array,
-                        "elevation": detectedElevation_array, "azimuth":detectedAzimuth_array, "snr": detectedSNR_array
+                        "elevation": detectedElevation_array, "snr": detectedSNR_array, 
+                        "rangeArray" : rangeArray , "dopplerArray" : dopplerArray , 
+                        "rangeDoppler" : rangeDoppler,"doppler": detectedV_array, 
+                        "snr": detectedSNR_array,  "noise": detectedNoise_array
                         }
                 # print("detObj:\n", detObj)
 
@@ -219,9 +234,26 @@ class Radar:
             # All processing done; Exit
             if (self.debug):
                 print("numFramesParsed: ", numFramesParsed)
+            
+            # if dataOK :
+            #     print('great')
+            #     #, rangeArray, dopplerArray, rangeDoppler
+            
+            # else :
+            #     print('bad')
+            #     print(dataOK, frameNumber, detObj, rangeArray, dopplerArray, rangeDoppler)
+            #     return dataOK, frameNumber, detObj#, ['1'], ['1'], ['1']
+            # if dataOK:
+            #     plt.clf ()
+            #     levels = np. linspace(0, 4000, num=40)
+            #     heatmap = plt.contourf(self.doppler_parameters ["range_array"], self.doppler_parameters ["doppler_array"])
 
+            #     self.fig.colorbar(heatmap, shrink=0.9) 
+            #     self.fig.canvas.draw()
+            #     plt. savefig ("RangeDoppler_Heatmap. png")
+                
         return dataOK, frameNumber, detObj
-
+    
     def find_average_point(self, data_ok, detection_obj):
         """ find average point """
         x_value = 0

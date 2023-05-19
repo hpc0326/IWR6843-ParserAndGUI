@@ -3,17 +3,28 @@ from threading import Thread
 from modules.utils import Utils
 from modules.radar import Radar
 from modules.gui import GUI
+from modules.heatmap import HEATMAP
+from modules.dot_gui import DOTDoppler
 import time
 import numpy as np
 from threading import Thread
 
 # 0: left / right detection; 1: up / down detection; 2: other detection
 DETECT_DIRECTION = 0
+#Point Cloud GUI
+POINT_CLOUD_GUI = 0
+#Heatmap GUI
+HEATMAP_GUI = 1
+#Dot version doppler
+DOT_DOPPLER = 0#still fixing
+
 
 # Initialize classes
 Utils = Utils()
 Radar = Radar()
 GUI = GUI()
+HEATMAP = HEATMAP()
+DOTDoppler = DOTDoppler()#still fixing
 
 RADAR_CLI_PORT, RADAR_DATA_PORT, RADAR_CONFIG_FILE_PATH, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME = Utils.get_radar_env()
 cli_serial, data_serial = Radar.start(
@@ -29,12 +40,28 @@ def radar_thread_function():
         avg_pt = Radar.find_average_point(data_ok, detection_obj)
         Radar.point_record(
                 data_ok, avg_pt, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, DETECT_DIRECTION)
-        if data_ok:
-            print("avg_pt:", avg_pt)
+        
+        if data_ok and POINT_CLOUD_GUI and not HEATMAP_GUI:
             GUI.store_point(avg_pt[:, :3])
+            
+        if data_ok and HEATMAP_GUI and not POINT_CLOUD_GUI:
+            HEATMAP.save_data(detection_obj['doppler'], detection_obj['range'])
+       
+        # if data_ok and DOT_DOPPLER:
+        #     DOTDoppler.save_data(detection_obj['doppler'], detection_obj['range'])
 
-radar_thread = Thread(target=radar_thread_function, args=())
-radar_thread.daemon = True
-radar_thread.start()
+if POINT_CLOUD_GUI:
+    thread1 = Thread(target=radar_thread_function, args=(), daemon=True)
+    thread1.start()
+    GUI.start(RADAR_POSITION_X, RADAR_POSITION_Y, RADAR_POSITION_Z, GRID_SIZE)
 
-GUI.start(RADAR_POSITION_X, RADAR_POSITION_Y, RADAR_POSITION_Z, GRID_SIZE)
+
+if HEATMAP_GUI:
+    thread2 = Thread(target=radar_thread_function, args=(), daemon=True)
+    thread2.start()
+    HEATMAP.start()
+
+# if DOT_DOPPLER:
+#     thread3 = Thread(target=radar_thread_function, args=(), daemon=True)
+#     thread3.start()
+#     DOTDoppler.start()
