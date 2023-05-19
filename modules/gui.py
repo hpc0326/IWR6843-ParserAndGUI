@@ -112,5 +112,5 @@ class GUI():
     def store_point(self, point):
         """ store_point """
         self.point_data = point
-        print(point)
+        # print(point)
     

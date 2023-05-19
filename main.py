@@ -28,6 +28,7 @@ def radar_thread_function():
         Radar.point_record(
                 data_ok, avg_pt, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, DETECT_DIRECTION)
         if data_ok:
+            print("avg_pt:", avg_pt)
             GUI.store_point(avg_pt[:, :3])
 
 radar_thread = Thread(target=radar_thread_function, args=())

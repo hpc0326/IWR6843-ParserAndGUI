@@ -195,10 +195,11 @@ class Radar:
                 # help(parser_one_mmw_demo_output_packet)
                 ##################################################################################
 
-                detObj = {"numObj": numDetObj, "range": detectedRange_array,
+                detObj = {"numObj": numDetObj, "range": detectedRange_array, "doppler": detectedV_array,
                         "x": detectedX_array, "y": detectedY_array, "z": detectedZ_array,
-                        "elevation": detectedElevation_array, "snr": detectedSNR_array
+                        "elevation": detectedElevation_array, "azimuth":detectedAzimuth_array, "snr": detectedSNR_array
                         }
+                # print("detObj:\n", detObj)
 
                 detSideInfoObj = {"doppler": detectedV_array, "snr": detectedSNR_array,
                                 "noise": detectedNoise_array
@@ -228,32 +229,42 @@ class Radar:
         z_value = 0
         num_points = 0
         snr_max = 200
-        zero_pt = np.zeros((1, 4))  # for initial zero value
+        zero_pt = np.zeros((1, 7))  # for initial zero value
+
 
         # get average point per frame
         if data_ok:
-            pos_pt = np.zeros((detection_obj["numObj"], 4))
+            pos_pt = np.zeros((detection_obj["numObj"], 6))
             avg_pt = zero_pt
 
-            pos_pt = np.array(list(map(tuple, np.stack(
-                [detection_obj["x"], detection_obj["y"], detection_obj["z"], detection_obj["snr"]], axis=1))))
+            pos_pt = np.array(list(map(tuple, np.stack([
+                detection_obj["x"], detection_obj["y"], detection_obj["z"], detection_obj["doppler"],
+                detection_obj["range"], detection_obj["snr"]] , axis=1))))
 
             # 取出符合條件的索引
-            indices = np.where(pos_pt[:, 3] > snr_max)
+            indices = np.where(pos_pt[:, 5] > snr_max)
 
-            # 取出對應的 x, y, z 值
-            x_vals = pos_pt[indices, 0]
-            y_vals = pos_pt[indices, 1]
-            z_vals = pos_pt[indices, 2]
+            # # 取出對應的 x, y, z 值
+            # x_vals = pos_pt[indices, 0]
+            # y_vals = pos_pt[indices, 1]
+            # z_vals = pos_pt[indices, 2]
+            # doppler_vals = pos_pt[indices, 3]
+            # range_vals = pos_pt[indices, 4]
+            # snr_vals = pos_pt[indices, 5]
+
+            x_vals, y_vals, z_vals, doppler_vals, range_vals, snr_vals = pos_pt[indices, :6].T
 
             # 計算平均值
             x_value = np.mean(x_vals)
             y_value = np.mean(y_vals)
             z_value = np.mean(z_vals)
+            doppler_value = np.mean(doppler_vals)
+            range_value = np.mean(range_vals)
+            snr_value = np.mean(snr_vals)
             num_points += len(indices[0])
 
             if num_points > 0:
-                avg_pt = np.array([[x_value, y_value, z_value, time.time()]])
+                avg_pt = np.array([[x_value, y_value, z_value, doppler_value, range_value, snr_value, time.time()]])
                 # print('avg_pt:', avg_pt)
                 return avg_pt
                 # print(pos_pt)
@@ -262,9 +273,35 @@ class Radar:
                 # print('avg_pt:', avg_pt)
                 return avg_pt
 
+    # def find_average_point(self, data_ok, detection_obj):
+    #     """ find average point """
+    #     snr_max = 200
+    #     zero_pt = np.zeros((1, 7))  # for initial zero value
+
+    #     if data_ok:
+    #         pos_pt = np.zeros((detection_obj["numObj"], 7))
+    #         avg_pt = zero_pt
+
+    #         pos_pt[:, :6] = np.stack([
+    #             detection_obj["x"], detection_obj["y"], detection_obj["z"], detection_obj["doppler"],
+    #             detection_obj["range"], detection_obj["snr"]], axis=1)
+
+    #         indices = np.where(pos_pt[:, 5] > snr_max)
+
+    #         mean_values = np.mean(pos_pt[indices], axis=0)
+    #         num_points = len(indices[0])
+
+    #         if num_points > 0:
+    #             avg_pt = np.append(mean_values, time.time())
+    #         else:
+    #             avg_pt = zero_pt
+
+    #         return np.array(avg_pt)
+
+
     def point_record(self, data_ok, avg_pt, npy_file_dir, npy_file_name, direction):
         """ record gesture point"""
-        zero_pt = np.zeros((1, 4))  # for initial zero value
+        zero_pt = np.zeros((1, 7))  # for initial zero value
 
         # update start_detect flag
         if data_ok:
@@ -356,10 +393,10 @@ class Radar:
 
     def change_time_unit(self, tmp_arr):
         """ change time unit """
-        stime = tmp_arr[0][3]
+        stime = tmp_arr[0][6]
         new_arr = tmp_arr
         arr_len = len(tmp_arr)
 
         for i in range(arr_len):
-            new_arr[i][3] = new_arr[i][3] - stime
+            new_arr[i][6] = new_arr[i][6] - stime
         return new_arr
