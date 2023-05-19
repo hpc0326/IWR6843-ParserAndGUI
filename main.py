@@ -2,6 +2,7 @@ from modules.utils import Utils
 from modules.radar import Radar
 from modules.gui import GUI
 from modules.heatmap import HEATMAP
+from modules.dot_gui import DOTDoppler
 import time
 import numpy as np
 from threading import Thread
@@ -12,6 +13,8 @@ DETECT_DIRECTION = 0
 POINT_CLOUD_GUI = 0
 #Heatmap GUI
 HEATMAP_GUI = 1
+#Dot version doppler
+DOT_DOPPLER = 0
 
 
 # Initialize classes
@@ -19,6 +22,7 @@ Utils = Utils()
 Radar = Radar()
 GUI = GUI()
 HEATMAP = HEATMAP()
+DOTDoppler = DOTDoppler()
 
 RADAR_CLI_PORT, RADAR_DATA_PORT, RADAR_CONFIG_FILE_PATH, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME = Utils.get_radar_env()
 cli_serial, data_serial = Radar.start(
@@ -34,13 +38,14 @@ def process():
         Radar.point_record(
                 dataOk, avg_pt, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, DETECT_DIRECTION)
         
-        if dataOk and POINT_CLOUD_GUI and not HEATMAP_GUI:
-            GUI.store_point(avg_pt[:, :3])
+        # if dataOk and POINT_CLOUD_GUI and not HEATMAP_GUI:
+        #     GUI.store_point(avg_pt[:, :3])
             
         if dataOk and HEATMAP_GUI and not POINT_CLOUD_GUI:
-            
-            HEATMAP.save_data(detObj['rangeArray'], detObj['dopplerArray'], detObj['rangeDoppler'])
+            HEATMAP.save_data(detObj['doppler'], detObj['range'])
        
+        if dataOk and DOT_DOPPLER:
+            DOTDoppler.save_data(detObj['doppler'], detObj['range'])
 
 if POINT_CLOUD_GUI:
     thread1 = Thread(target=process, args=(), daemon=True)
@@ -52,3 +57,9 @@ if HEATMAP_GUI:
     thread2 = Thread(target=process, args=(), daemon=True)
     thread2.start()
     HEATMAP.start()
+
+if DOT_DOPPLER:
+    thread3 = Thread(target=process, args=(), daemon=True)
+    thread3.start()
+    DOTDoppler.start()
+# process()

@@ -6,7 +6,7 @@ import serial
 import numpy as np
 from modules.parser_mmw_demo import parser_one_mmw_demo_output_packet
 # from modules.ti_radar_sdk import parser_one_mmw_demo_output_packet
-
+import matplotlib as plt
 
 class Radar:
     """ Class: Radar """
@@ -187,7 +187,12 @@ class Radar:
             dopplerArray,\
             rangeDoppler = parser_one_mmw_demo_output_packet(
                 allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.radar_parameters, self.debug)
+            # print('#####detectRangeAry#######')
+            # print(detectedRange_array)
+            # print('#######detectedV_array############')
+            # print(detectedV_array)
 
+            
             if (self.debug):
                 print("Parser result: ", parser_result)
             if (parser_result == 0):
@@ -206,7 +211,8 @@ class Radar:
                         "x": detectedX_array, "y": detectedY_array, "z": detectedZ_array,
                         "elevation": detectedElevation_array, "snr": detectedSNR_array, 
                         "rangeArray" : rangeArray , "dopplerArray" : dopplerArray , 
-                        "rangeDoppler" : rangeDoppler
+                        "rangeDoppler" : rangeDoppler,"doppler": detectedV_array, 
+                        "snr": detectedSNR_array,  "noise": detectedNoise_array
                         }
 
                 detSideInfoObj = {"doppler": detectedV_array, "snr": detectedSNR_array,
@@ -236,7 +242,15 @@ class Radar:
             #     print('bad')
             #     print(dataOK, frameNumber, detObj, rangeArray, dopplerArray, rangeDoppler)
             #     return dataOK, frameNumber, detObj#, ['1'], ['1'], ['1']
-            
+            # if dataOK:
+            #     plt.clf ()
+            #     levels = np. linspace(0, 4000, num=40)
+            #     heatmap = plt.contourf(self.doppler_parameters ["range_array"], self.doppler_parameters ["doppler_array"])
+
+            #     self.fig.colorbar(heatmap, shrink=0.9) 
+            #     self.fig.canvas.draw()
+            #     plt. savefig ("RangeDoppler_Heatmap. png")
+                
         return dataOK, frameNumber, detObj
     
     def find_average_point(self, data_ok, detection_obj):

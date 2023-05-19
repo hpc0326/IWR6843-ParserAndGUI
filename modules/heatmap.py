@@ -17,9 +17,9 @@ class HEATMAP():
         self.colors_array = np.array([np.array(color.get_rgb()) * 255 for color in self.colors])
         self.look_up_table = self.colors_array.astype(np.uint8)
         self.data = np.zeros((32, 256))
-        self.rangeAry = None
-        self.dopplerAry = None
-        self.rangeDpr = None
+        self.range = None
+        # self.dopplerAry = None
+        self.doppler = None
         self.image = None
         print('''[Info] Initialize HEATMAP class ''')
 
@@ -33,6 +33,9 @@ class HEATMAP():
         view_box = pg.ViewBox()
         view_box.addItem(self.image)
         plot = pg.PlotItem(viewBox=view_box)
+        # plot.setYRange()
+        plot.showGrid(x=True, y=True, alpha=1)
+        window.enableMouse(False)
         window.addItem(plot)
         
         timer = QtCore.QTimer()
@@ -45,16 +48,20 @@ class HEATMAP():
 
 
     def update(self):
-        self.data = self.dopplerAry
+        # self.data = self.dopplerAry
         self.image.setImage(self.data) #test with updateImage
         #print doppler array
-        print(self.data)
+        # print(self.data)
 
     def setTimer(self, t):
         t.timeout.connect(self.update)
         t.start(100)
     
-    def save_data(self, rangeDpr, rangeAry, dopplerAry):
-        self.rangeDpr = rangeDpr #useless
-        self.rangeAry = rangeAry #useless
-        self.dopplerAry = np.transpose(dopplerAry) 
+    def save_data(self, doppler, range):
+        self.data = np.zeros((32, 32))
+        for i, j in enumerate(range) :
+            self.data[int((j+2)*8)][int((doppler[i]+2)*8)] = 1000
+            # self.range = range * 50 #useless
+            # self.doppler = doppler * 50#useless
+        print(self.data)
+        # self.data = np.transpose(self.data) 
