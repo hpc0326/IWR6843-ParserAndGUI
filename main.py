@@ -1,3 +1,5 @@
+"""This module contains the main application logic for processing and displaying radar data."""
+from threading import Thread
 from modules.utils import Utils
 from modules.radar import Radar
 from modules.gui import GUI
@@ -20,19 +22,19 @@ cli_serial, data_serial = Radar.start(
 RADAR_POSITION_X, RADAR_POSITION_Y, RADAR_POSITION_Z, GRID_SIZE = Utils.get_gui_env()
 
 
-def process():
-    while 1:
-        dataOk, frameNumber, detObj = Radar.read_and_parse_radar_data(data_serial)
-        avg_pt = Radar.find_average_point(dataOk, detObj)
+def radar_thread_function():
+    """radar_thread_function"""
+    while True:
+        data_ok, _, detection_obj = Radar.read_and_parse_radar_data(data_serial)
+        avg_pt = Radar.find_average_point(data_ok, detection_obj)
         Radar.point_record(
-                dataOk, avg_pt, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, DETECT_DIRECTION)
-        if dataOk:
+                data_ok, avg_pt, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, DETECT_DIRECTION)
+        if data_ok:
+            print("avg_pt:", avg_pt)
             GUI.store_point(avg_pt[:, :3])
-       
 
-
-thread1 = Thread(target=process, args=())
-thread1.setDaemon(True)
-thread1.start()
+radar_thread = Thread(target=radar_thread_function, args=())
+radar_thread.daemon = True
+radar_thread.start()
 
 GUI.start(RADAR_POSITION_X, RADAR_POSITION_Y, RADAR_POSITION_Z, GRID_SIZE)

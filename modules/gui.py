@@ -9,9 +9,8 @@ class GUI():
     ''' Class GUI '''
 
     def __init__(self):
-        
-        self.point_data = np.array([[0.0 ,0.0 ,0.0]])
         self.point_cloud = None
+        self.point_data = np.array([[0.0 ,0.0 ,0.0]])
         print('''[Info] Initialize GUI class ''')
 
     def start(self, radar_position_x, radar_position_y, radar_position_z, grid_size):
@@ -21,7 +20,6 @@ class GUI():
         gl_view = gl.GLViewWidget()
         gl_view.setBackgroundColor(QtGui.QColor(0, 0, 0))
         gl_view.show()
-        # app.exec_()
         self.radar_position_settings(
             gl_view, radar_position_x, radar_position_y, radar_position_z)
         self.grid_settings(gl_view, grid_size)
@@ -104,13 +102,16 @@ class GUI():
         gl_view.addItem(self.point_cloud)
 
     def update_point(self):
+        """ update_point """
         self.point_cloud.setData(pos=self.point_data)
 
-    def setTimer(self, t):
-        t.timeout.connect(self.update_point)
-        t.start(50)
+    def set_timer(self, timer):
+        """ set_timer """
+        timer.timeout.connect(self.update_point)
+        timer.start(50)
 
     def store_point(self, point):
-        print(point)
+        """ store_point """
         self.point_data = point
+        # print(point)
     
