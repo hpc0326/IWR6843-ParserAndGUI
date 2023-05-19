@@ -3,9 +3,7 @@ from threading import Thread
 from modules.utils import Utils
 from modules.radar import Radar
 from modules.gui import GUI
-import time
-import numpy as np
-from threading import Thread
+
 
 # 0: left / right detection; 1: up / down detection; 2: other detection
 DETECT_DIRECTION = 0
