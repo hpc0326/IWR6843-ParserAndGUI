@@ -22,7 +22,7 @@ def read_data(number):
     """
     path = f"radar_data/{npy_file_name}_{number}.npy"
     np_array = np.load(path)
-    dataframe = pd.DataFrame(np_array, columns=['x', 'y', 'z', 'time'])
+    dataframe = pd.DataFrame(np_array, columns=['x', 'y', 'z', 'doppler', 'range', 'snr', 'time'])
     return dataframe, path
 
 
@@ -41,8 +41,8 @@ def set_figure(dataframe, title):
     axes.set_ylim([0.6, 0])
     axes.set_zlim([-0.6, 0.6])
     # 調整視角
-    # axes.view_init(elev=80, azim=-90)   # 俯視（用於觀察左右、遠近的變化）
-    axes.view_init(elev=10, azim=-90)   # 正面（用於觀察上下、左右的變化）
+    axes.view_init(elev=80, azim=-90)   # 俯視（用於觀察左右、遠近的變化）
+    # axes.view_init(elev=10, azim=-90)   # 正面（用於觀察上下、左右的變化）
     # axes.view_init(elev=5, azim=-150)   # 側面（用於觀察上下、遠近的變化）
     plt.title(title)
     return fig, axes, scatter
@@ -80,5 +80,5 @@ if __name__ == '__main__':
     gesture_dataframe, file_path = read_data(file_number)
     print(gesture_dataframe)
     animation = animate(file_path, gesture_dataframe, interval=33)
-    animation.save('PointCloud_animation.gif')
+    animation.save('radar_data_gif/PointCloud_animation.gif')
     # plt.show()  # 打開 3D 圖的視窗
