@@ -27,6 +27,7 @@ shiboken6 = "==6.5.0"
 six = "==1.16.0"
 tzdata = "==2023.3"
 zipp = "==3.15.0"
+opencv-python = "==4.7.0.72"
 
 [dev-packages]
 

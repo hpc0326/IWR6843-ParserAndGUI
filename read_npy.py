@@ -20,7 +20,8 @@ def read_data(number):
     """
     從檔案中讀取資料並以 DataFrame 的形式返回
     """
-    path = f"radar_data/{npy_file_name}_{number}.npy"
+    # path = f"radar_data/{npy_file_name}_{number}.npy"
+    path = f"radar_data_feng/feng_data_{number}.npy"
     np_array = np.load(path)
     dataframe = pd.DataFrame(np_array, columns=['x', 'y', 'z', 'doppler', 'range', 'snr', 'time'])
     return dataframe, path
@@ -38,11 +39,11 @@ def set_figure(dataframe, title):
     axes.set_zlabel('Z')
     # 調整座標範圍
     axes.set_xlim([0.6, -0.6])
-    axes.set_ylim([0.6, 0])
+    axes.set_ylim([1.2, 0])
     axes.set_zlim([-0.6, 0.6])
     # 調整視角
-    axes.view_init(elev=80, azim=-90)   # 俯視（用於觀察左右、遠近的變化）
-    # axes.view_init(elev=10, azim=-90)   # 正面（用於觀察上下、左右的變化）
+    # axes.view_init(elev=80, azim=-90)   # 俯視（用於觀察左右、遠近的變化）
+    axes.view_init(elev=10, azim=-90)   # 正面（用於觀察上下、左右的變化）
     # axes.view_init(elev=5, azim=-150)   # 側面（用於觀察上下、遠近的變化）
     plt.title(title)
     return fig, axes, scatter
