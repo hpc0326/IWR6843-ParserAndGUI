@@ -253,7 +253,7 @@ class Radar:
             #     plt. savefig ("RangeDoppler_Heatmap. png")
                 
         return dataOK, frameNumber, detObj
-    
+
     def find_average_point(self, data_ok, detection_obj):
         """ find average point """
         x_value = 0
@@ -297,39 +297,13 @@ class Radar:
 
             if num_points > 0:
                 avg_pt = np.array([[x_value, y_value, z_value, doppler_value, range_value, snr_value, time.time()]])
-                # # print('avg_pt:', avg_pt)
+                # print('avg_pt:', avg_pt)
                 return avg_pt
                 # print(pos_pt)
             else:
                 avg_pt = zero_pt
                 # print('avg_pt:', avg_pt)
                 return avg_pt
-
-    # def find_average_point(self, data_ok, detection_obj):
-    #     """ find average point """
-    #     snr_max = 200
-    #     zero_pt = np.zeros((1, 7))  # for initial zero value
-
-    #     if data_ok:
-    #         pos_pt = np.zeros((detection_obj["numObj"], 7))
-    #         avg_pt = zero_pt
-
-    #         pos_pt[:, :6] = np.stack([
-    #             detection_obj["x"], detection_obj["y"], detection_obj["z"], detection_obj["doppler"],
-    #             detection_obj["range"], detection_obj["snr"]], axis=1)
-
-    #         indices = np.where(pos_pt[:, 5] > snr_max)
-
-    #         mean_values = np.mean(pos_pt[indices], axis=0)
-    #         num_points = len(indices[0])
-
-    #         if num_points > 0:
-    #             avg_pt = np.append(mean_values, time.time())
-    #         else:
-    #             avg_pt = zero_pt
-
-    #         return np.array(avg_pt)
-
 
     def point_record(self, data_ok, avg_pt, npy_file_dir, npy_file_name, direction):
         """ record gesture point"""

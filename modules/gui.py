@@ -27,8 +27,7 @@ class GUI():
         self.view_angle_settings(gl_view)
         self.initialize_point_cloud(gl_view)
         timer = QtCore.QTimer()
-        self.setTimer(timer)
-        # app.exec_()
+        self.set_timer(timer)
         if sys.flags.interactive != 1:
             if not hasattr(QtCore, 'PYQT_VERSION'):
                 QtWidgets.QApplication.instance().exec()

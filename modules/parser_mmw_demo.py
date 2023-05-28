@@ -188,7 +188,7 @@ def parser_one_mmw_demo_output_packet(data, readNumBytes, configParameters, debu
                                                     
             # the 1st TLV must be type 1
             if tlvType == 1 and tlvLen < totalPacketNumBytes:#MMWDEMO_UART_MSG_DETECTED_POINTS
-                
+
                 # TLV type 1 contains x, y, z, v values of all detect objects. 
                 # each x, y, z, v are 32-bit float in IEEE 754 single-precision binary floating-point format, so every 16 bytes represent x, y, z, v values of one detect objects.    
                 
