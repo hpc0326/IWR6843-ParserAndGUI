@@ -8,6 +8,8 @@ from modules.parser_mmw_demo import parser_one_mmw_demo_output_packet
 # from modules.ti_radar_sdk import parser_one_mmw_demo_output_packet
 import matplotlib as plt
 
+
+
 class Radar:
     """ Class: Radar """
     def __init__(self):
@@ -26,12 +28,15 @@ class Radar:
         self.wave_end_time = 0
         self.tmp_record_arr = np.zeros((1, 4))
         self.radar_parameters = {}
+         # Number of data points in each window
+        self.window_buffer = []  # Buffer to store data points for each window
+        self.WINDOW_SIZE = 25 
         print('''[Info] Initialize Radar class ''')
 
-    def start(self, radar_cli_port, radar_data_port, radar_config_file_path):
+    def start(self, radar_cli_port, radar_data_port, radar_config_file_path, window_size = 25):
         """ Radar.start """
         radar_config = []
-
+        self.WINDOW_SIZE = window_size
         cli_serial = serial.Serial(radar_cli_port, 115200)
         data_serial = serial.Serial(radar_data_port, 921600)
         # Read the configuration file and send it to the board
@@ -253,7 +258,38 @@ class Radar:
             #     plt. savefig ("RangeDoppler_Heatmap. png")
                 
         return dataOK, frameNumber, detObj
+    
+    
+    def process_window(self, window_data):
+        """Process the data points in a window and perform gesture recognition."""
 
+        print("Processing window data:", window_data)
+
+        # filecount = len(os.listdir("radar_data"))
+        # filename = f"./radar_data/yuan_data_{filecount}.npy"
+        # new_arr = self.change_time_unit(self.tmp_record_arr)
+        # np.save(filename, window_data)
+
+        # Example: Save the window data to a file
+        with open('gesture_data.csv', 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            # writer.writerow(window_data)
+            for window in window_data:
+                writer.writerow(window[0])
+            
+    def sliding_window(self, avg_pt):
+        # Store the average point in the window buffer
+        self.window_buffer.append(avg_pt)
+     
+        # Check if the window buffer is full
+        if len(self.window_buffer) >= self.WINDOW_SIZE:
+            # Process the window data
+            self.process_window(self.window_buffer)
+            
+            # Clear the window buffer for the next window
+            self.window_buffer = self.window_buffer[1:]  # Remove the oldest data point
+            
+            
     def find_average_point(self, data_ok, detection_obj):
         """ find average point """
         x_value = 0
@@ -312,7 +348,8 @@ class Radar:
         # update start_detect flag
         if data_ok:
             self.detection = self.detection + 1
-
+            
+            
         # start record
         if data_ok and (avg_pt != zero_pt).all():
             if self.detection == 1:

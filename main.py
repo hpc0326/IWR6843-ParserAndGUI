@@ -8,13 +8,14 @@ from modules.dot_gui import DOTDoppler
 import time
 import numpy as np
 from threading import Thread
+import csv
 
 # 0: left / right detection; 1: up / down detection; 2: other detection
 DETECT_DIRECTION = 0
 #Point Cloud GUI
-POINT_CLOUD_GUI = 0
+POINT_CLOUD_GUI = 1
 #Heatmap GUI
-HEATMAP_GUI = 1
+HEATMAP_GUI = 0
 #Dot version doppler
 DOT_DOPPLER = 0#still fixing
 
@@ -33,14 +34,23 @@ cli_serial, data_serial = Radar.start(
 RADAR_POSITION_X, RADAR_POSITION_Y, RADAR_POSITION_Z, GRID_SIZE = Utils.get_gui_env()
 
 
+
 def radar_thread_function():
     """radar_thread_function"""
+    window_buffer = Radar.window_buffer
+    
     while True:
         data_ok, _, detection_obj = Radar.read_and_parse_radar_data(data_serial)
         avg_pt = Radar.find_average_point(data_ok, detection_obj)
         Radar.point_record(
                 data_ok, avg_pt, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, DETECT_DIRECTION)
         
+        if data_ok:
+            print("avg_pt:", avg_pt)
+            Radar.sliding_window(avg_pt)
+            
+            
+                
         if data_ok and POINT_CLOUD_GUI and not HEATMAP_GUI:
             GUI.store_point(avg_pt[:, :3])
             
