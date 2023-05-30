@@ -27,9 +27,7 @@ def read_data(number):
 
 
 def set_figure(dataframe, title):
-    """
-    設置 3D 圖的初始設定並返回圖像和軸物件
-    """
+    
     fig = plt.figure()
     axes = fig.add_subplot(projection='3d')
     scatter = axes.scatter(dataframe['x'], dataframe['y'], dataframe['z'])

@@ -4,7 +4,6 @@ from modules.utils import Utils
 from modules.radar import Radar
 from modules.gui import GUI
 from modules.heatmap import HEATMAP
-from modules.dot_gui import DOTDoppler
 import time
 import numpy as np
 from threading import Thread
@@ -16,16 +15,12 @@ DETECT_DIRECTION = 0
 POINT_CLOUD_GUI = 1
 #Heatmap GUI
 HEATMAP_GUI = 0
-#Dot version doppler
-DOT_DOPPLER = 0#still fixing
-
 
 # Initialize classes
 Utils = Utils()
 Radar = Radar()
 GUI = GUI()
 HEATMAP = HEATMAP()
-DOTDoppler = DOTDoppler()#still fixing
 
 RADAR_CLI_PORT, RADAR_DATA_PORT, RADAR_CONFIG_FILE_PATH, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME = Utils.get_radar_env()
 cli_serial, data_serial = Radar.start(
@@ -34,31 +29,59 @@ cli_serial, data_serial = Radar.start(
 RADAR_POSITION_X, RADAR_POSITION_Y, RADAR_POSITION_Z, GRID_SIZE = Utils.get_gui_env()
 
 
+def SliWin(frameNum, queue, snr):
+    queue.append(snr)
+     
+    # Check if the window buffer is full
+    if len(queue) >= frameNum:
+        # Clear the window buffer for the next window
+        queue = queue[1:]  # Remove the oldest data point
+
+    return queue 
+
+def triggerCheck(sta, lta, status):
+
+    staMean = sum(sta)/len(sta)
+    ltaMean = sum(lta)/len(lta)
+    # print('staMean ', staMean)
+    # print('ltaMean ', ltaMean)
+
+    if staMean/ltaMean > 2 : 
+        status = True
+    elif staMean/ltaMean < 0.1:
+        status = False
+
+    return status
 
 def radar_thread_function():
     """radar_thread_function"""
     window_buffer = Radar.window_buffer
-    
+    sta = []
+    lta = []
+    status = False
+
     while True:
         data_ok, _, detection_obj = Radar.read_and_parse_radar_data(data_serial)
         avg_pt = Radar.find_average_point(data_ok, detection_obj)
         Radar.point_record(
+
                 data_ok, avg_pt, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, DETECT_DIRECTION)
         
         if data_ok:
-            print("avg_pt:", avg_pt)
-            Radar.sliding_window(avg_pt)
-            
-            
-                
+            print("avg_pt:", avg_pt[0][5])
+            snr = avg_pt[0][5]
+            sta = SliWin(15, sta, snr)
+            lta = SliWin(35, lta, snr)
+
+            status = triggerCheck(sta, lta, status)
+            print(status)
+            # Radar.sliding_window(avg_pt)
+  
         if data_ok and POINT_CLOUD_GUI and not HEATMAP_GUI:
             GUI.store_point(avg_pt[:, :3])
             
         if data_ok and HEATMAP_GUI and not POINT_CLOUD_GUI:
             HEATMAP.save_data(detection_obj['doppler'], detection_obj['range'])
-       
-        # if data_ok and DOT_DOPPLER:
-        #     DOTDoppler.save_data(detection_obj['doppler'], detection_obj['range'])
 
 if POINT_CLOUD_GUI:
     thread1 = Thread(target=radar_thread_function, args=(), daemon=True)
@@ -71,7 +94,3 @@ if HEATMAP_GUI:
     thread2.start()
     HEATMAP.start()
 
-# if DOT_DOPPLER:
-#     thread3 = Thread(target=radar_thread_function, args=(), daemon=True)
-#     thread3.start()
-#     DOTDoppler.start()

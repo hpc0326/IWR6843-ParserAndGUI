@@ -263,7 +263,7 @@ class Radar:
     def process_window(self, window_data):
         """Process the data points in a window and perform gesture recognition."""
 
-        print("Processing window data:", window_data)
+        # print("Processing window data:", window_data)
 
         # filecount = len(os.listdir("radar_data"))
         # filename = f"./radar_data/yuan_data_{filecount}.npy"
