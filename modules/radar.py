@@ -29,7 +29,7 @@ class Radar:
         self.tmp_record_arr = np.zeros((1, 4))
         self.radar_parameters = {}
          # Number of data points in each window
-        self.window_buffer = []  # Buffer to store data points for each window
+        self.window_buffer = np.ndarray((0,7))  # Buffer to store data points for each window
         self.WINDOW_SIZE = 25 
         print('''[Info] Initialize Radar class ''')
 
@@ -192,10 +192,6 @@ class Radar:
             dopplerArray,\
             rangeDoppler = parser_one_mmw_demo_output_packet(
                 allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.radar_parameters, self.debug)
-            # print('#####detectRangeAry#######')
-            # print(detectedRange_array)
-            # print('#######detectedV_array############')
-            # print(detectedV_array)
 
             
             if (self.debug):
@@ -260,36 +256,8 @@ class Radar:
         return dataOK, frameNumber, detObj
     
     
-    def process_window(self, window_data):
-        """Process the data points in a window and perform gesture recognition."""
-
-        # print("Processing window data:", window_data)
-
-        # filecount = len(os.listdir("radar_data"))
-        # filename = f"./radar_data/yuan_data_{filecount}.npy"
-        # new_arr = self.change_time_unit(self.tmp_record_arr)
-        # np.save(filename, window_data)
-
-        # Example: Save the window data to a file
-        with open('gesture_data.csv', 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-            # writer.writerow(window_data)
-            for window in window_data:
-                writer.writerow(window[0])
-            
-    def sliding_window(self, avg_pt):
-        # Store the average point in the window buffer
-        self.window_buffer.append(avg_pt)
-     
-        # Check if the window buffer is full
-        if len(self.window_buffer) >= self.WINDOW_SIZE:
-            # Process the window data
-            self.process_window(self.window_buffer)
-            
-            # Clear the window buffer for the next window
-            self.window_buffer = self.window_buffer[1:]  # Remove the oldest data point
-            
-            
+    
+    
     def find_average_point(self, data_ok, detection_obj):
         """ find average point """
         x_value = 0
@@ -330,6 +298,7 @@ class Radar:
             range_value = np.mean(range_vals)
             snr_value = np.mean(snr_vals)
             num_points += len(indices[0])
+            save_point = 0
 
             if num_points > 0:
                 avg_pt = np.array([[x_value, y_value, z_value, doppler_value, range_value, snr_value, time.time()]])
@@ -341,98 +310,26 @@ class Radar:
                 # print('avg_pt:', avg_pt)
                 return avg_pt
 
-    def point_record(self, data_ok, avg_pt, npy_file_dir, npy_file_name, direction):
-        """ record gesture point"""
-        zero_pt = np.zeros((1, 7))  # for initial zero value
+    def data_to_numpy(self, npy_file_dir, npy_file_name):
+        filecount = len(os.listdir(npy_file_dir))
+        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
+        new_arr = self.change_time_unit(self.window_buffer)
+        np.save(filename, new_arr)
 
-        # update start_detect flag
-        if data_ok:
-            self.detection = self.detection + 1
+    def data_to_csv(self):
+        """Process the data points in a window and perform gesture recognition."""
+
+        # Example: Save the window data to a file
+        with open('gesture_data.csv', 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            # writer.writerow(window_data)
+            for window in self.window_buffer:
+                # print(window)
+                writer.writerow(window)
             
             
-        # start record
-        if data_ok and (avg_pt != zero_pt).all():
-            if self.detection == 1:
-                print("DETECTION START")
-                self.wave_start_time = time.time()
-                self.tmp_record_arr = avg_pt
-                self.wave_start_pt = avg_pt
-
-            self.wave_last_pt = self.wave_end_pt
-            self.wave_end_pt = avg_pt
-
-            if (self.wave_end_pt != self.wave_last_pt).all():  # avoid noise point
-                if self.detection != 1:  # avoid duplicate start point
-                    self.tmp_record_arr = np.append(self.tmp_record_arr, avg_pt, axis=0)
-
-        elif data_ok == 0:
-            self.wave_end_time = time.time()
-            wave_time = self.wave_end_time - self.wave_start_time
-            if wave_time > 3:
-                # every time execute only can choose one of leftright or updown or others
-                # left / right detect
-                if direction == 0:
-                    if self.wave_end_pt[0][0] > self.wave_start_pt[0][0]:
-                        print("left wave")
-                        filecount = len(os.listdir(npy_file_dir))
-                        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
-                        new_arr = self.change_time_unit(self.tmp_record_arr)
-                        np.save(filename, new_arr)
-                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
-                            demo_writer = csv.writer(
-                                csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demo_writer.writerow([filename, "left wave"])
-                        self.tmp_record_arr = zero_pt
-                    elif self.wave_end_pt[0][0] < self.wave_start_pt[0][0]:
-                        print("right wave")
-                        filecount = len(os.listdir(npy_file_dir))
-                        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
-                        new_arr = self.change_time_unit(self.tmp_record_arr)
-                        np.save(filename, new_arr)
-                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
-                            demo_writer = csv.writer(
-                                csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demo_writer.writerow([filename, "right wave"])
-                        self.tmp_record_arr = zero_pt
-                
-                # up / down detect
-                if direction == 1:
-                    if self.wave_end_pt[0][2] > self.wave_start_pt[0][2]:
-                        print("up wave")
-                        filecount = len(os.listdir(npy_file_dir))
-                        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
-                        new_arr = self.change_time_unit(self.tmp_record_arr)
-                        np.save(filename, new_arr)
-                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
-                            demo_writer = csv.writer(
-                                csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demo_writer.writerow([filename, "up wave"])
-                        self.tmp_record_arr = zero_pt
-
-                    elif self.wave_end_pt[0][2] < self.wave_start_pt[0][2]:
-                        print("down wave")
-                        filecount = len(os.listdir(npy_file_dir))
-                        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
-                        new_arr = self.change_time_unit(self.tmp_record_arr)
-                        np.save(filename, new_arr)
-                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
-                            demo_writer = csv.writer(
-                                csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demo_writer.writerow([filename, "down wave"])
-                        self.tmp_record_arr = zero_pt
-
-                # others detect
-                if direction == 2:
-                    if (self.wave_end_pt != self.wave_start_pt).all():
-                        print("others")
-                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as democsvfile:
-                            demo_output_writer = csv.writer(democsvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demo_output_writer.writerow(["others"])
-
-                self.detection = 0
-                self.wave_start_pt = zero_pt
-                self.wave_last_pt = zero_pt
-                self.wave_end_pt = zero_pt
+    def sliding_window(self, data):
+        self.window_buffer = np.row_stack((self.window_buffer, data[0]))
 
     def change_time_unit(self, tmp_arr):
         """ change time unit """

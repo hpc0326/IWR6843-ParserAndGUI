@@ -30,6 +30,7 @@ RADAR_POSITION_X, RADAR_POSITION_Y, RADAR_POSITION_Z, GRID_SIZE = Utils.get_gui_
 
 
 def SliWin(frameNum, queue, snr):
+
     queue.append(snr)
      
     # Check if the window buffer is full
@@ -59,23 +60,45 @@ def radar_thread_function():
     sta = []
     lta = []
     status = False
+    counter = 0
 
     while True:
         data_ok, _, detection_obj = Radar.read_and_parse_radar_data(data_serial)
         avg_pt = Radar.find_average_point(data_ok, detection_obj)
-        Radar.point_record(
-
-                data_ok, avg_pt, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, DETECT_DIRECTION)
         
-        if data_ok:
-            print("avg_pt:", avg_pt[0][5])
+        if data_ok and status == True and counter < 25:
+            #prevent multipler trigger 
+            #separate the True and False situation
+
+            #append each avg_pt
+            Radar.sliding_window(avg_pt)
+            counter += 1
+        
+        elif data_ok and status == True and counter == 25:
+
+            #write to csv
+            Radar.data_to_csv()
+            #save data
+            Radar.data_to_numpy(
+                DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME)
+            
+            #reset
+            counter = 0
+            sta = []
+            lta = []
+            status = False
+            Radar.window_buffer = np.ndarray((0,7))
+            
+
+        elif data_ok:
+            #trigger data type
             snr = avg_pt[0][5]
             sta = SliWin(15, sta, snr)
             lta = SliWin(35, lta, snr)
 
+            #trigger checking
             status = triggerCheck(sta, lta, status)
             print(status)
-            # Radar.sliding_window(avg_pt)
   
         if data_ok and POINT_CLOUD_GUI and not HEATMAP_GUI:
             GUI.store_point(avg_pt[:, :3])
