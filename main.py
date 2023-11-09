@@ -44,38 +44,33 @@ def triggerCheck(sta, lta, status):
 
     staMean = sum(sta)/len(sta)
     ltaMean = sum(lta)/len(lta)
-    # print('staMean ', staMean)
-    # print('ltaMean ', ltaMean)
 
-    if staMean/ltaMean > 2 : 
+    if staMean/ltaMean > 1.1 : #adjust the trigger threshold by yourself
         status = True
     elif staMean/ltaMean < 0.1:
         status = False
-
+    print(staMean/ltaMean)
     return status
 
 def radar_thread_function():
     """radar_thread_function"""
-    window_buffer = Radar.window_buffer
     sta = []
     lta = []
     status = False
     counter = 0
-
+    
     while True:
         data_ok, _, detection_obj = Radar.read_and_parse_radar_data(data_serial)
         avg_pt = Radar.find_average_point(data_ok, detection_obj)
         
         if data_ok and status == True and counter < 25:
-            #prevent multipler trigger 
-            #separate the True and False situation
 
             #append each avg_pt
             Radar.sliding_window(avg_pt)
             counter += 1
         
         elif data_ok and status == True and counter == 25:
-
+            print('avg', avg_pt)
             #write to csv
             Radar.data_to_csv()
             #save data
@@ -87,7 +82,7 @@ def radar_thread_function():
             sta = []
             lta = []
             status = False
-            Radar.window_buffer = np.ndarray((0,7))
+            Radar.window_buffer = np.ndarray((0,9))
             
 
         elif data_ok:
@@ -95,10 +90,11 @@ def radar_thread_function():
             snr = avg_pt[0][5]
             sta = SliWin(15, sta, snr)
             lta = SliWin(35, lta, snr)
+            print(snr)
 
             #trigger checking
             status = triggerCheck(sta, lta, status)
-            print(status)
+            
   
         if data_ok and POINT_CLOUD_GUI and not HEATMAP_GUI:
             GUI.store_point(avg_pt[:, :3])

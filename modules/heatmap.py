@@ -58,8 +58,9 @@ class HEATMAP():
         t.start(100)
     
     def save_data(self, doppler, range):
-        self.data = np.zeros((32, 32))
+        self.data = np.zeros((100, 100))
         for i, j in enumerate(range) :
+            print(i, j)
             self.data[int((j+2)*8)][int((doppler[i]+2)*8)] = 1000
             # self.range = range * 50 #useless
             # self.doppler = doppler * 50#useless
