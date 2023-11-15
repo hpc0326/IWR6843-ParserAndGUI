@@ -4,12 +4,8 @@ from modules.utils import Utils
 from modules.radar import Radar
 from modules.gui import GUI
 from modules.heatmap import HEATMAP
-import time
 import numpy as np
-from threading import Thread
 
-# 0: left / right detection; 1: up / down detection; 2: other detection
-DETECT_DIRECTION = 0
 # Point Cloud GUI
 POINT_CLOUD_GUI = 0
 # Heatmap GUI
@@ -28,7 +24,7 @@ cli_serial, data_serial = Radar.start(
 RADAR_POSITION_X, RADAR_POSITION_Y, RADAR_POSITION_Z, GRID_SIZE = Utils.get_gui_env()
 
 
-def SliWin(frameNum, queue, snr):
+def sliding_window(frameNum, queue, snr):
 
     queue.append(snr)
 
@@ -40,7 +36,9 @@ def SliWin(frameNum, queue, snr):
     return queue
 
 
-def triggerCheck(sta, lta, status):
+def trigger_check(sta, lta, status):
+    if not sta or not lta:
+        return status
 
     staMean = sum(sta)/len(sta)
     ltaMean = sum(lta)/len(lta)
@@ -50,7 +48,7 @@ def triggerCheck(sta, lta, status):
     elif staMean/ltaMean < 1.1:
         status = False
 
-    print(f'''status: {status}, STA/LTA: {staMean/ltaMean}, staMean:{staMean}, ltaMean:{ltaMean}''')
+    # print(f'''status: {status}, STA/LTA: {staMean/ltaMean}, staMean:{staMean}, ltaMean:{ltaMean}''')
     return status
 
 
@@ -59,46 +57,49 @@ def radar_thread_function():
     sta = []
     lta = []
     status = False
+    prev_status = False  # 新增变量以跟踪上一个状态
     counter = 0
+    pre_trigger_data = []
 
     while True:
-        data_ok, _, detection_obj = Radar.read_and_parse_radar_data(
-            data_serial)
+        data_ok, _, detection_obj = Radar.read_and_parse_radar_data(data_serial)
         avg_pt = Radar.find_average_point(data_ok, detection_obj)
 
-        if data_ok and status == True and counter < 25:
+        if data_ok:
+            pre_trigger_data.append(avg_pt)
+            if len(pre_trigger_data) > 10:
+                pre_trigger_data.pop(0)
 
-            Radar.sliding_window(avg_pt)
-            counter += 1
-            print(f'''Record frame {counter}, data: {avg_pt}''')
-
-        elif data_ok and status == True and counter == 25:
-
-            # write to csv
-            # Radar.data_to_csv()
-            # save data
-            print("Gesture End\n")
-            Radar.data_to_numpy(DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME)
-
-            # reset
-            counter = 0
-            sta = []
-            lta = []
-            status = False
-            Radar.window_buffer = np.ndarray((0, 9))
-
-        elif data_ok:
-            # trigger data type
-            snr = avg_pt[0][5]
-            sta = SliWin(15, sta, snr + 150)
-            lta = SliWin(35, lta, snr + 150)
-            # print(detection_obj['numObj'])
             # trigger checking
-            status = triggerCheck(sta, lta, status)
-            if (status):
-                print("\nGesture Start")
-            # else:
-            #     print("No Gesture")
+            prev_status = status
+            status = trigger_check(sta, lta, status)
+            if status:
+                if not prev_status:
+                    print("\nGesture Start")
+                    for data in pre_trigger_data:
+                        Radar.sliding_window(data)
+                    counter = len(pre_trigger_data)
+
+            if status and counter < 25:
+                Radar.sliding_window(avg_pt)
+                counter += 1
+                print(f'''Record frame {counter}, data: {avg_pt}''')
+
+            if status and counter == 25:
+                print("Gesture End\n")
+                Radar.data_to_numpy(DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME)
+                # reset
+                counter = 0
+                sta = []
+                lta = []
+                status = False
+                pre_trigger_data = []
+                Radar.window_buffer = np.ndarray((0, 9))
+
+            if not status:
+                snr = avg_pt[0][5]
+                sta = sliding_window(15, sta, snr + 150)
+                lta = sliding_window(35, lta, snr + 150)
 
         if data_ok and POINT_CLOUD_GUI and not HEATMAP_GUI:
             GUI.store_point(avg_pt[:, :3])
