@@ -44,39 +44,38 @@ def triggerCheck(sta, lta, status):
 
     staMean = sum(sta)/len(sta)
     ltaMean = sum(lta)/len(lta)
-    # print('staMean/ltaMean:', staMean/ltaMean)
-    # print('staMean ', staMean)
-    # print('ltaMean ', ltaMean)
 
-    if staMean/ltaMean > 2:
+    if staMean/ltaMean > 1.35:
         status = True
-    elif staMean/ltaMean < 0.1:
+    elif staMean/ltaMean < 1.1:
         status = False
 
+    print(f'''status: {status}, STA/LTA: {staMean/ltaMean}, staMean:{staMean}, ltaMean:{ltaMean}''')
     return status
 
 
 def radar_thread_function():
     """radar_thread_function"""
-    window_buffer = Radar.window_buffer
     sta = []
     lta = []
     status = False
     counter = 0
 
     while True:
-        data_ok, _, detection_obj = Radar.read_and_parse_radar_data(data_serial)
+        data_ok, _, detection_obj = Radar.read_and_parse_radar_data(
+            data_serial)
         avg_pt = Radar.find_average_point(data_ok, detection_obj)
 
         if data_ok and status == True and counter < 25:
+
             Radar.sliding_window(avg_pt)
             counter += 1
-            print(f"Record frame {counter}")
+            print(f'''Record frame {counter}, data: {avg_pt}''')
 
         elif data_ok and status == True and counter == 25:
 
             # write to csv
-            Radar.data_to_csv()
+            # Radar.data_to_csv()
             # save data
             print("Gesture End\n")
             Radar.data_to_numpy(DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME)
@@ -86,14 +85,14 @@ def radar_thread_function():
             sta = []
             lta = []
             status = False
-            Radar.window_buffer = np.ndarray((0, 7))
+            Radar.window_buffer = np.ndarray((0, 9))
 
         elif data_ok:
             # trigger data type
             snr = avg_pt[0][5]
-            sta = SliWin(15, sta, snr)
-            lta = SliWin(35, lta, snr)
-
+            sta = SliWin(15, sta, snr + 150)
+            lta = SliWin(35, lta, snr + 150)
+            # print(detection_obj['numObj'])
             # trigger checking
             status = triggerCheck(sta, lta, status)
             if (status):

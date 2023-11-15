@@ -5,7 +5,6 @@ import csv
 import serial
 import numpy as np
 from modules.parser_mmw_demo import parser_one_mmw_demo_output_packet
-# from modules.ti_radar_sdk import parser_one_mmw_demo_output_packet
 import matplotlib as plt
 
 
@@ -29,7 +28,7 @@ class Radar:
         self.tmp_record_arr = np.zeros((1, 4))
         self.radar_parameters = {}
          # Number of data points in each window
-        self.window_buffer = np.ndarray((0,7))  # Buffer to store data points for each window
+        self.window_buffer = np.ndarray((0,9))  # Buffer to store data points for each window
         self.WINDOW_SIZE = 25 
         print('''[Info] Initialize Radar class ''')
 
@@ -210,16 +209,12 @@ class Radar:
 
                 detObj = {"numObj": numDetObj, "range": detectedRange_array, "doppler": detectedV_array,
                         "x": detectedX_array, "y": detectedY_array, "z": detectedZ_array,
-                        "elevation": detectedElevation_array, "snr": detectedSNR_array, 
+                        "elevation": detectedElevation_array, "azimuth" : detectedAzimuth_array, "snr": detectedSNR_array, 
                         "rangeArray" : rangeArray , "dopplerArray" : dopplerArray , 
                         "rangeDoppler" : rangeDoppler,"doppler": detectedV_array, 
                         "snr": detectedSNR_array,  "noise": detectedNoise_array
                         }
-                # print("detObj:\n", detObj)
-
-                detSideInfoObj = {"doppler": detectedV_array, "snr": detectedSNR_array,
-                                "noise": detectedNoise_array
-                                }
+                
                 dataOK = 1
 
             shiftSize = totalPacketNumBytes
@@ -236,22 +231,6 @@ class Radar:
             if (self.debug):
                 print("numFramesParsed: ", numFramesParsed)
             
-            # if dataOK :
-            #     print('great')
-            #     #, rangeArray, dopplerArray, rangeDoppler
-            
-            # else :
-            #     print('bad')
-            #     print(dataOK, frameNumber, detObj, rangeArray, dopplerArray, rangeDoppler)
-            #     return dataOK, frameNumber, detObj#, ['1'], ['1'], ['1']
-            # if dataOK:
-            #     plt.clf ()
-            #     levels = np. linspace(0, 4000, num=40)
-            #     heatmap = plt.contourf(self.doppler_parameters ["range_array"], self.doppler_parameters ["doppler_array"])
-
-            #     self.fig.colorbar(heatmap, shrink=0.9) 
-            #     self.fig.canvas.draw()
-            #     plt. savefig ("RangeDoppler_Heatmap. png")
                 
         return dataOK, frameNumber, detObj
     
@@ -263,32 +242,25 @@ class Radar:
         x_value = 0
         y_value = 0
         z_value = 0
+        azi_vals = 0
+        eln_vals = 0
         num_points = 0
         snr_max = 200
-        zero_pt = np.zeros((1, 7))  # for initial zero value
-
+        zero_pt = np.zeros((1, 9))  # for initial zero value
+        
 
         # get average point per frame
         if data_ok:
-            pos_pt = np.zeros((detection_obj["numObj"], 6))
+            pos_pt = np.zeros((detection_obj["numObj"], 9))
             avg_pt = zero_pt
-
+            
             pos_pt = np.array(list(map(tuple, np.stack([
                 detection_obj["x"], detection_obj["y"], detection_obj["z"], detection_obj["doppler"],
-                detection_obj["range"], detection_obj["snr"]] , axis=1))))
-
+                detection_obj["range"], detection_obj["snr"], detection_obj["azimuth"], detection_obj["elevation"]] , axis=1))))
+            
             # 取出符合條件的索引
             indices = np.where(pos_pt[:, 5] > snr_max)
-
-            # # 取出對應的 x, y, z 值
-            # x_vals = pos_pt[indices, 0]
-            # y_vals = pos_pt[indices, 1]
-            # z_vals = pos_pt[indices, 2]
-            # doppler_vals = pos_pt[indices, 3]
-            # range_vals = pos_pt[indices, 4]
-            # snr_vals = pos_pt[indices, 5]
-
-            x_vals, y_vals, z_vals, doppler_vals, range_vals, snr_vals = pos_pt[indices, :6].T
+            x_vals, y_vals, z_vals, doppler_vals, range_vals, snr_vals, azi_vals, eln_vals = pos_pt[indices, :9].T
 
             # 計算平均值
             x_value = np.mean(x_vals)
@@ -297,22 +269,22 @@ class Radar:
             doppler_value = np.mean(doppler_vals)
             range_value = np.mean(range_vals)
             snr_value = np.mean(snr_vals)
+            azi_vals = np.mean(azi_vals)
+            eln_vals = np.mean(eln_vals)
             num_points += len(indices[0])
             save_point = 0
 
             if num_points > 0:
-                avg_pt = np.array([[-x_value, y_value, z_value, doppler_value, range_value, snr_value, time.time()]])
-                # print('avg_pt:', avg_pt)
+                avg_pt = np.array([[x_value, y_value, z_value, doppler_value, range_value, snr_value, azi_vals, eln_vals, time.time()]])
                 return avg_pt
-                # print(pos_pt)
             else:
                 avg_pt = zero_pt
-                # print('avg_pt:', avg_pt)
                 return avg_pt
 
     def data_to_numpy(self, npy_file_dir, npy_file_name):
         filecount = len(os.listdir(npy_file_dir))
         filecount = filecount -1 
+        # print(filecount)
         filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
         # new_arr = self.change_time_unit(self.window_buffer)
         new_arr = self.window_buffer
@@ -339,7 +311,6 @@ class Radar:
         stime = tmp_arr[0][6]
         new_arr = tmp_arr
         arr_len = len(tmp_arr)
-
         for i in range(arr_len):
             new_arr[i][6] = new_arr[i][6] - stime
         return new_arr

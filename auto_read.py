@@ -33,7 +33,7 @@ class RadarDataVisualization:
     def read_data(self, number):
         path = f"radar_data/{npy_file_name}_{number}.npy"
         np_array = np.load(path)
-        dataframe = pd.DataFrame(np_array, columns=['x', 'y', 'z', 'doppler', 'range', 'snr', 'time']).drop('time', axis=1)
+        dataframe = pd.DataFrame(np_array, columns=['x', 'y', 'z', 'doppler', 'range', 'snr', 'azimuth', 'elevation', 'time']).drop('time', axis=1)
         return dataframe, path
 
     def set_figure(self, title):
@@ -43,7 +43,7 @@ class RadarDataVisualization:
         self.axes.set_xlabel('X')
         self.axes.set_ylabel('Y')
         self.axes.set_zlabel('Z')
-        self.axes.set_xlim([-0.6, 0.6])
+        self.axes.set_xlim([0.6, -0.6])
         self.axes.set_ylim([0.6, 0])
         self.axes.set_zlim([-0.6, 0.6])
         self.axes.view_init(elev=10, azim=-90)
