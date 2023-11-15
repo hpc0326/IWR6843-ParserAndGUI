@@ -312,9 +312,12 @@ class Radar:
 
     def data_to_numpy(self, npy_file_dir, npy_file_name):
         filecount = len(os.listdir(npy_file_dir))
+        filecount = filecount -1 
         filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
-        new_arr = self.change_time_unit(self.window_buffer)
+        # new_arr = self.change_time_unit(self.window_buffer)
+        new_arr = self.window_buffer
         np.save(filename, new_arr)
+        # print(f"Gesture data {filecount} has been saved.")
 
     def data_to_csv(self):
         """Process the data points in a window and perform gesture recognition."""

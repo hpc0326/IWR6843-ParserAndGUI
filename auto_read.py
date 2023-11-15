@@ -1,24 +1,29 @@
-"""
-讀取包含每個動作的雷達資料的 .npy 檔案，並將這些資料可視化存成 .gif 檔案。
-程式執行後會顯示 "請輸入要查看的檔案編號:"
-假如檔案名稱為 yuan_data_55.npy 則輸入 55
-輸入後會在 Terminal 上印出這個手勢中每一個點的 (x, y, z) 座標以及出現的時間
-並且將這些點做成動畫存成 PointCloud_animation.gif 檔案，其中點的顏色由深至淺表示先後順序
-"""
 import os
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from dotenv import load_dotenv
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
+import threading
 
 load_dotenv()
 npy_file_name = os.getenv("DATA_STORAGE_FILE_NAME")
 
+class ProcessingThread(threading.Thread):
+    def __init__(self, radar_viz, file_number):
+        threading.Thread.__init__(self)
+        self.radar_viz = radar_viz
+        self.file_number = file_number
+
+    def run(self):
+        self.radar_viz.process_new_file(self.file_number)
 
 class RadarDataVisualization:
     def __init__(self):
-        self.file_number = None
         self.gesture_dataframe = None
         self.file_path = None
         self.fig = None
@@ -41,9 +46,8 @@ class RadarDataVisualization:
         self.axes.set_xlim([0.6, -0.6])
         self.axes.set_ylim([0.6, 0])
         self.axes.set_zlim([-0.6, 0.6])
-        self.axes.view_init(elev=10, azim=-90)   # 正面（用於觀察上下、左右的變化）
-        # self.axes.view_init(elev=80, azim=-90)   # 俯視（用於觀察左右、遠近的變化）
-        # self.axes.view_init(elev=5, azim=-150)   # 側面（用於觀察上下、遠近的變化）
+        self.axes.view_init(elev=10, azim=-90)
+        # self.axes.view_init(elev=10, azim=180)  
         plt.title(title)
 
     def update_plot(self, frame):
@@ -53,27 +57,13 @@ class RadarDataVisualization:
             self.gesture_dataframe['y'][:frame+1].values[snr_nonzero_indices],
             self.gesture_dataframe['z'][:frame+1].values[snr_nonzero_indices]
         )
-        self.scatter.set_array(range(len(snr_nonzero_indices)))
-        self.scatter.set_cmap('plasma')
-        self.scatter.set_clim(0, len(snr_nonzero_indices))
+        # self.scatter.set_array(range(len(snr_nonzero_indices)))
+        # self.scatter.set_cmap('plasma')
+        # self.scatter.set_clim(0, len(snr_nonzero_indices))
         return self.scatter,
 
-    def run(self):
-        self.file_number = input("請輸入要查看的檔案編號:")
-        self.gesture_dataframe, self.file_path = self.read_data(self.file_number)
-        print("All data\n", self.gesture_dataframe)
-        self.gesture_dataframe = self.gesture_dataframe.loc[self.gesture_dataframe['snr'] != 0].reset_index(drop=True)
-        print("No Zero\n", self.gesture_dataframe)
-
-        self.set_figure(f'Filepath: {self.file_path}')
-        animation = FuncAnimation(self.fig, self.update_plot, frames=len(self.gesture_dataframe), interval=40, blit=True)
-
-        output_file = 'radar_data_gif/PointCloud_animation.gif'
-        animation.save(output_file, writer='pillow')
-        print(f"圖片已儲存至 {output_file}")
-
-    def get_animation(self, dataframe):
-        self.gesture_dataframe = dataframe
+    def process_new_file(self, file_number):
+        self.gesture_dataframe, self.file_path = self.read_data(file_number)
         self.gesture_dataframe = self.gesture_dataframe.loc[self.gesture_dataframe['snr'] != 0].reset_index(drop=True)
         print(self.gesture_dataframe)
 
@@ -84,7 +74,28 @@ class RadarDataVisualization:
         animation.save(output_file, writer='pillow')
         print(f"圖片已儲存至 {output_file}")
 
+    def watch_directory(self, directory):
+        event_handler = FileSystemEventHandler()
+
+        def on_created(event):
+            if not event.is_directory:
+                file_name = event.src_path
+                file_number = file_name.split('_')[-1].split('.')[0]
+                processing_thread = ProcessingThread(self, file_number)
+                processing_thread.start()
+
+        event_handler.on_created = on_created
+
+        observer = Observer()
+        observer.schedule(event_handler, directory, recursive=False)
+        observer.start()
+        try:
+            while True:
+                pass
+        except KeyboardInterrupt:
+            observer.stop()
+        observer.join()
 
 if __name__ == '__main__':
     radar_viz = RadarDataVisualization()
-    radar_viz.run()
+    radar_viz.watch_directory('radar_data')
