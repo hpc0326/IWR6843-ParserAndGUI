@@ -43,7 +43,7 @@ class RadarDataVisualization:
         self.axes.set_xlabel('X')
         self.axes.set_ylabel('Y')
         self.axes.set_zlabel('Z')
-        self.axes.set_xlim([0.6, -0.6])
+        self.axes.set_xlim([-0.6, 0.6])
         self.axes.set_ylim([0.6, 0])
         self.axes.set_zlim([-0.6, 0.6])
         self.axes.view_init(elev=10, azim=-90)

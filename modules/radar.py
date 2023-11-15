@@ -301,7 +301,7 @@ class Radar:
             save_point = 0
 
             if num_points > 0:
-                avg_pt = np.array([[x_value, y_value, z_value, doppler_value, range_value, snr_value, time.time()]])
+                avg_pt = np.array([[-x_value, y_value, z_value, doppler_value, range_value, snr_value, time.time()]])
                 # print('avg_pt:', avg_pt)
                 return avg_pt
                 # print(pos_pt)
