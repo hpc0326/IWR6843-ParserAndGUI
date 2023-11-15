@@ -149,6 +149,10 @@ radar_data_csv/*
 !radar_data_gif/
 radar_data_gif/*
 !radar_data_gif/.gitkeep
+radar_data_pic/*
+!radar_data_pic/.gitkeep
+radar_data_png/*
+!radar_data_png/.gitkeep
 *.csv
 *.npy
 *.gif
