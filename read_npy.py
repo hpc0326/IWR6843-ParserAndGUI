@@ -28,7 +28,7 @@ class RadarDataVisualization:
     def read_data(self, number):
         path = f"radar_data/{npy_file_name}_{number}.npy"
         np_array = np.load(path)
-        dataframe = pd.DataFrame(np_array, columns=['x', 'y', 'z', 'doppler', 'range', 'snr', 'azimuth', 'elevation', 'time']).drop('time', axis=1)
+        dataframe = pd.DataFrame(np_array, columns=['x', 'y', 'z', 'doppler', 'range', 'snr', 'azimuth', 'elevation'])
         return dataframe, path
 
     def set_figure(self, title, view):
