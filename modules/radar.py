@@ -312,7 +312,8 @@ class Radar:
         if end_index is not None:
             dataframe_interpolated.iloc[end_index + 1:] = data_frame.iloc[end_index + 1:]
 
-        np.save(filename, dataframe_interpolated.fillna(0))
+        interpolated_npy = dataframe_interpolated.fillna(0).to_numpy()
+        np.save(filename, interpolated_npy)
         print(f"Gesture data {filecount} has been saved.")
 
     def data_to_csv(self):
