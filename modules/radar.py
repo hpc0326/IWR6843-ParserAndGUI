@@ -4,6 +4,7 @@ import time
 import csv
 import serial
 import numpy as np
+import pandas as pd
 from modules.parser_mmw_demo import parser_one_mmw_demo_output_packet
 import matplotlib as plt
 
@@ -281,14 +282,37 @@ class Radar:
                 avg_pt = zero_pt
                 return avg_pt
 
+    # def data_to_numpy(self, npy_file_dir, npy_file_name):
+    #     filecount = len(os.listdir(npy_file_dir))
+    #     filecount = filecount -1 
+    #     # print(filecount)
+    #     filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
+    #     # new_arr = self.change_time_unit(self.window_buffer)
+    #     new_arr = self.window_buffer
+    #     np.save(filename, new_arr)
+    #     print(f"Gesture data {filecount} has been saved.")
+
     def data_to_numpy(self, npy_file_dir, npy_file_name):
-        filecount = len(os.listdir(npy_file_dir))
-        filecount = filecount -1 
-        # print(filecount)
-        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
-        # new_arr = self.change_time_unit(self.window_buffer)
-        new_arr = self.window_buffer
-        np.save(filename, new_arr)
+        filecount = len(os.listdir(npy_file_dir)) - 1
+        filename = f"{npy_file_dir}/{npy_file_name}_{filecount}.npy"
+
+        data_frame = pd.DataFrame(self.window_buffer, columns=['x', 'y', 'z', 'doppler', 'range', 'snr', 'azimuth', 'elevation', 'time']).drop('time', axis=1)
+
+        data_frame.replace(0, np.nan, inplace=True)
+
+        dataframe_interpolated = data_frame.interpolate(method='linear', limit_direction='both')
+
+        # 檢查開頭和結尾是否有連續的NaN行
+        start_index = data_frame.first_valid_index()
+        end_index = data_frame.last_valid_index()
+
+        # 保留原始DataFrame的開頭和結尾部分
+        if start_index is not None:
+            dataframe_interpolated.iloc[:start_index] = data_frame.iloc[:start_index]
+        if end_index is not None:
+            dataframe_interpolated.iloc[end_index + 1:] = data_frame.iloc[end_index + 1:]
+
+        np.save(filename, dataframe_interpolated.fillna(0))
         print(f"Gesture data {filecount} has been saved.")
 
     def data_to_csv(self):
