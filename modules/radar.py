@@ -289,7 +289,7 @@ class Radar:
         # new_arr = self.change_time_unit(self.window_buffer)
         new_arr = self.window_buffer
         np.save(filename, new_arr)
-        # print(f"Gesture data {filecount} has been saved.")
+        print(f"Gesture data {filecount} has been saved.")
 
     def data_to_csv(self):
         """Process the data points in a window and perform gesture recognition."""

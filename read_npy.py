@@ -31,7 +31,8 @@ class RadarDataVisualization:
         dataframe = pd.DataFrame(np_array, columns=['x', 'y', 'z', 'doppler', 'range', 'snr', 'azimuth', 'elevation', 'time']).drop('time', axis=1)
         return dataframe, path
 
-    def set_figure(self, title):
+    def set_figure(self, title, view):
+        plt.close()
         self.fig = plt.figure()
         self.axes = self.fig.add_subplot(projection='3d')
         self.scatter = self.axes.scatter(self.gesture_dataframe['x'], self.gesture_dataframe['y'], self.gesture_dataframe['z'])
@@ -41,9 +42,14 @@ class RadarDataVisualization:
         self.axes.set_xlim([0.6, -0.6])
         self.axes.set_ylim([0.6, 0])
         self.axes.set_zlim([-0.6, 0.6])
-        self.axes.view_init(elev=10, azim=-90)   # 正面（用於觀察上下、左右的變化）
-        # self.axes.view_init(elev=80, azim=-90)   # 俯視（用於觀察左右、遠近的變化）
-        # self.axes.view_init(elev=5, azim=-150)   # 側面（用於觀察上下、遠近的變化）
+
+        if view == 'b':
+            self.axes.view_init(elev=80, azim=-90)  # 俯視（用於觀察左右、遠近的變化）
+        elif view == 'c':
+            self.axes.view_init(elev=5, azim=-150)  # 側面（用於觀察上下、遠近的變化）
+        else :
+            self.axes.view_init(elev=10, azim=-90)  # 正面（用於觀察上下、左右的變化）
+
         plt.title(title)
 
     def update_plot(self, frame):
@@ -58,15 +64,19 @@ class RadarDataVisualization:
         self.scatter.set_clim(0, len(snr_nonzero_indices))
         return self.scatter,
 
-    def run(self):
-        self.file_number = input("請輸入要查看的檔案編號:")
+    def run(self, file_number, view = 'a'):
+        self.file_number = file_number
+        if not os.path.exists(f"radar_data/{npy_file_name}_{self.file_number}.npy"):
+            print(f"文件 {npy_file_name}_{self.file_number}.npy 不存在。")
+            return False
+
         self.gesture_dataframe, self.file_path = self.read_data(self.file_number)
         print("All data\n", self.gesture_dataframe)
-        self.gesture_dataframe = self.gesture_dataframe.loc[self.gesture_dataframe['snr'] != 0].reset_index(drop=True)
-        print("No Zero\n", self.gesture_dataframe)
+        # self.gesture_dataframe = self.gesture_dataframe.loc[self.gesture_dataframe['snr'] != 0].reset_index(drop=True)
+        # print("No Zero\n", self.gesture_dataframe)
 
-        self.set_figure(f'Filepath: {self.file_path}')
-        animation = FuncAnimation(self.fig, self.update_plot, frames=len(self.gesture_dataframe), interval=40, blit=True)
+        self.set_figure(f'Filepath: {self.file_path}', view)
+        animation = FuncAnimation(self.fig, self.update_plot, frames=len(self.gesture_dataframe), interval=20, blit=True)
 
         output_file = 'radar_data_gif/PointCloud_animation.gif'
         animation.save(output_file, writer='pillow')
@@ -87,4 +97,17 @@ class RadarDataVisualization:
 
 if __name__ == '__main__':
     radar_viz = RadarDataVisualization()
-    radar_viz.run()
+
+    file_number = int(input("請輸入要查看的起始檔案編號: "))
+    view = str(input("請輸入要查看的視角，a, b, c 分別為正面、俯視和側面視角: "))
+    while True:
+        success = radar_viz.run(file_number, view)
+        if success:
+            input("按 Enter 繼續到下一個文件...")
+            file_number += 1
+        else:
+            new_number = input("請輸入新的編號或按 Enter 換下一筆資料: ")
+            if new_number:
+                file_number = int(new_number)
+            else:
+                file_number += 1

@@ -64,8 +64,9 @@ class RadarDataVisualization:
 
     def process_new_file(self, file_number):
         self.gesture_dataframe, self.file_path = self.read_data(file_number)
-        self.gesture_dataframe = self.gesture_dataframe.loc[self.gesture_dataframe['snr'] != 0].reset_index(drop=True)
         print(self.gesture_dataframe)
+        self.gesture_dataframe = self.gesture_dataframe.loc[self.gesture_dataframe['snr'] != 0].reset_index(drop=True)
+        # print(self.gesture_dataframe)
 
         self.set_figure(f'Filepath: {self.file_path}')
         animation = FuncAnimation(self.fig, self.update_plot, frames=len(self.gesture_dataframe), interval=40, blit=True)
