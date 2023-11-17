@@ -4,9 +4,11 @@ import time
 import csv
 import serial
 import numpy as np
+import pandas as pd
 from modules.parser_mmw_demo import parser_one_mmw_demo_output_packet
-# from modules.ti_radar_sdk import parser_one_mmw_demo_output_packet
 import matplotlib as plt
+
+
 
 class Radar:
     """ Class: Radar """
@@ -26,12 +28,15 @@ class Radar:
         self.wave_end_time = 0
         self.tmp_record_arr = np.zeros((1, 4))
         self.radar_parameters = {}
+         # Number of data points in each window
+        self.window_buffer = np.ndarray((0,9))  # Buffer to store data points for each window
+        self.WINDOW_SIZE = 25 
         print('''[Info] Initialize Radar class ''')
 
-    def start(self, radar_cli_port, radar_data_port, radar_config_file_path):
+    def start(self, radar_cli_port, radar_data_port, radar_config_file_path, window_size = 25):
         """ Radar.start """
         radar_config = []
-
+        self.WINDOW_SIZE = window_size
         cli_serial = serial.Serial(radar_cli_port, 115200)
         data_serial = serial.Serial(radar_data_port, 921600)
         # Read the configuration file and send it to the board
@@ -187,10 +192,6 @@ class Radar:
             dopplerArray,\
             rangeDoppler = parser_one_mmw_demo_output_packet(
                 allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.radar_parameters, self.debug)
-            # print('#####detectRangeAry#######')
-            # print(detectedRange_array)
-            # print('#######detectedV_array############')
-            # print(detectedV_array)
 
             
             if (self.debug):
@@ -209,16 +210,12 @@ class Radar:
 
                 detObj = {"numObj": numDetObj, "range": detectedRange_array, "doppler": detectedV_array,
                         "x": detectedX_array, "y": detectedY_array, "z": detectedZ_array,
-                        "elevation": detectedElevation_array, "snr": detectedSNR_array, 
+                        "elevation": detectedElevation_array, "azimuth" : detectedAzimuth_array, "snr": detectedSNR_array, 
                         "rangeArray" : rangeArray , "dopplerArray" : dopplerArray , 
                         "rangeDoppler" : rangeDoppler,"doppler": detectedV_array, 
                         "snr": detectedSNR_array,  "noise": detectedNoise_array
                         }
-                # print("detObj:\n", detObj)
-
-                detSideInfoObj = {"doppler": detectedV_array, "snr": detectedSNR_array,
-                                "noise": detectedNoise_array
-                                }
+                
                 dataOK = 1
 
             shiftSize = totalPacketNumBytes
@@ -235,56 +232,36 @@ class Radar:
             if (self.debug):
                 print("numFramesParsed: ", numFramesParsed)
             
-            # if dataOK :
-            #     print('great')
-            #     #, rangeArray, dopplerArray, rangeDoppler
-            
-            # else :
-            #     print('bad')
-            #     print(dataOK, frameNumber, detObj, rangeArray, dopplerArray, rangeDoppler)
-            #     return dataOK, frameNumber, detObj#, ['1'], ['1'], ['1']
-            # if dataOK:
-            #     plt.clf ()
-            #     levels = np. linspace(0, 4000, num=40)
-            #     heatmap = plt.contourf(self.doppler_parameters ["range_array"], self.doppler_parameters ["doppler_array"])
-
-            #     self.fig.colorbar(heatmap, shrink=0.9) 
-            #     self.fig.canvas.draw()
-            #     plt. savefig ("RangeDoppler_Heatmap. png")
                 
         return dataOK, frameNumber, detObj
-
+    
+    
+    
+    
     def find_average_point(self, data_ok, detection_obj):
         """ find average point """
         x_value = 0
         y_value = 0
         z_value = 0
+        azi_vals = 0
+        eln_vals = 0
         num_points = 0
         snr_max = 200
-        zero_pt = np.zeros((1, 7))  # for initial zero value
-
+        zero_pt = np.zeros((1, 9))  # for initial zero value
+        
 
         # get average point per frame
         if data_ok:
-            pos_pt = np.zeros((detection_obj["numObj"], 6))
+            pos_pt = np.zeros((detection_obj["numObj"], 9))
             avg_pt = zero_pt
-
+            
             pos_pt = np.array(list(map(tuple, np.stack([
                 detection_obj["x"], detection_obj["y"], detection_obj["z"], detection_obj["doppler"],
-                detection_obj["range"], detection_obj["snr"]] , axis=1))))
-
+                detection_obj["range"], detection_obj["snr"], detection_obj["azimuth"], detection_obj["elevation"]] , axis=1))))
+            
             # 取出符合條件的索引
             indices = np.where(pos_pt[:, 5] > snr_max)
-
-            # # 取出對應的 x, y, z 值
-            # x_vals = pos_pt[indices, 0]
-            # y_vals = pos_pt[indices, 1]
-            # z_vals = pos_pt[indices, 2]
-            # doppler_vals = pos_pt[indices, 3]
-            # range_vals = pos_pt[indices, 4]
-            # snr_vals = pos_pt[indices, 5]
-
-            x_vals, y_vals, z_vals, doppler_vals, range_vals, snr_vals = pos_pt[indices, :6].T
+            x_vals, y_vals, z_vals, doppler_vals, range_vals, snr_vals, azi_vals, eln_vals = pos_pt[indices, :9].T
 
             # 計算平均值
             x_value = np.mean(x_vals)
@@ -293,116 +270,72 @@ class Radar:
             doppler_value = np.mean(doppler_vals)
             range_value = np.mean(range_vals)
             snr_value = np.mean(snr_vals)
+            azi_vals = np.mean(azi_vals)
+            eln_vals = np.mean(eln_vals)
             num_points += len(indices[0])
+            save_point = 0
 
             if num_points > 0:
-                avg_pt = np.array([[x_value, y_value, z_value, doppler_value, range_value, snr_value, time.time()]])
-                # print('avg_pt:', avg_pt)
+                avg_pt = np.array([[x_value, y_value, z_value, doppler_value, range_value, snr_value, azi_vals, eln_vals, time.time()]])
                 return avg_pt
-                # print(pos_pt)
             else:
                 avg_pt = zero_pt
-                # print('avg_pt:', avg_pt)
                 return avg_pt
 
-    def point_record(self, data_ok, avg_pt, npy_file_dir, npy_file_name, direction):
-        """ record gesture point"""
-        zero_pt = np.zeros((1, 7))  # for initial zero value
+    # def data_to_numpy(self, npy_file_dir, npy_file_name):
+    #     filecount = len(os.listdir(npy_file_dir))
+    #     filecount = filecount -1 
+    #     # print(filecount)
+    #     filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
+    #     # new_arr = self.change_time_unit(self.window_buffer)
+    #     new_arr = self.window_buffer
+    #     np.save(filename, new_arr)
+    #     print(f"Gesture data {filecount} has been saved.")
 
-        # update start_detect flag
-        if data_ok:
-            self.detection = self.detection + 1
+    def data_to_numpy(self, npy_file_dir, npy_file_name):
+        filecount = len(os.listdir(npy_file_dir)) - 1
+        filename = f"{npy_file_dir}/{npy_file_name}_{filecount}.npy"
 
-        # start record
-        if data_ok and (avg_pt != zero_pt).all():
-            if self.detection == 1:
-                print("DETECTION START")
-                self.wave_start_time = time.time()
-                self.tmp_record_arr = avg_pt
-                self.wave_start_pt = avg_pt
+        data_frame = pd.DataFrame(self.window_buffer, columns=['x', 'y', 'z', 'doppler', 'range', 'snr', 'azimuth', 'elevation', 'time']).drop('time', axis=1)
 
-            self.wave_last_pt = self.wave_end_pt
-            self.wave_end_pt = avg_pt
+        data_frame.replace(0, np.nan, inplace=True)
 
-            if (self.wave_end_pt != self.wave_last_pt).all():  # avoid noise point
-                if self.detection != 1:  # avoid duplicate start point
-                    self.tmp_record_arr = np.append(self.tmp_record_arr, avg_pt, axis=0)
+        dataframe_interpolated = data_frame.interpolate(method='linear', limit_direction='both')
 
-        elif data_ok == 0:
-            self.wave_end_time = time.time()
-            wave_time = self.wave_end_time - self.wave_start_time
-            if wave_time > 3:
-                # every time execute only can choose one of leftright or updown or others
-                # left / right detect
-                if direction == 0:
-                    if self.wave_end_pt[0][0] > self.wave_start_pt[0][0]:
-                        print("left wave")
-                        filecount = len(os.listdir(npy_file_dir))
-                        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
-                        new_arr = self.change_time_unit(self.tmp_record_arr)
-                        np.save(filename, new_arr)
-                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
-                            demo_writer = csv.writer(
-                                csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demo_writer.writerow([filename, "left wave"])
-                        self.tmp_record_arr = zero_pt
-                    elif self.wave_end_pt[0][0] < self.wave_start_pt[0][0]:
-                        print("right wave")
-                        filecount = len(os.listdir(npy_file_dir))
-                        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
-                        new_arr = self.change_time_unit(self.tmp_record_arr)
-                        np.save(filename, new_arr)
-                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
-                            demo_writer = csv.writer(
-                                csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demo_writer.writerow([filename, "right wave"])
-                        self.tmp_record_arr = zero_pt
-                
-                # up / down detect
-                if direction == 1:
-                    if self.wave_end_pt[0][2] > self.wave_start_pt[0][2]:
-                        print("up wave")
-                        filecount = len(os.listdir(npy_file_dir))
-                        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
-                        new_arr = self.change_time_unit(self.tmp_record_arr)
-                        np.save(filename, new_arr)
-                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
-                            demo_writer = csv.writer(
-                                csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demo_writer.writerow([filename, "up wave"])
-                        self.tmp_record_arr = zero_pt
+        # 檢查開頭和結尾是否有連續的NaN行
+        start_index = data_frame.first_valid_index()
+        end_index = data_frame.last_valid_index()
 
-                    elif self.wave_end_pt[0][2] < self.wave_start_pt[0][2]:
-                        print("down wave")
-                        filecount = len(os.listdir(npy_file_dir))
-                        filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
-                        new_arr = self.change_time_unit(self.tmp_record_arr)
-                        np.save(filename, new_arr)
-                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as csvfile:
-                            demo_writer = csv.writer(
-                                csvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demo_writer.writerow([filename, "down wave"])
-                        self.tmp_record_arr = zero_pt
+        # 保留原始DataFrame的開頭和結尾部分
+        if start_index is not None:
+            dataframe_interpolated.iloc[:start_index] = data_frame.iloc[:start_index]
+        if end_index is not None:
+            dataframe_interpolated.iloc[end_index + 1:] = data_frame.iloc[end_index + 1:]
 
-                # others detect
-                if direction == 2:
-                    if (self.wave_end_pt != self.wave_start_pt).all():
-                        print("others")
-                        with open('radar_data_csv/np_label.csv', 'a+', newline='', encoding='utf-8') as democsvfile:
-                            demo_output_writer = csv.writer(democsvfile, delimiter=',', quotechar='', quoting=csv.QUOTE_NONE)
-                            demo_output_writer.writerow(["others"])
+        interpolated_npy = dataframe_interpolated.fillna(0).to_numpy()
+        np.save(filename, interpolated_npy)
+        print(f"Gesture data {filecount} has been saved.")
 
-                self.detection = 0
-                self.wave_start_pt = zero_pt
-                self.wave_last_pt = zero_pt
-                self.wave_end_pt = zero_pt
+    def data_to_csv(self):
+        """Process the data points in a window and perform gesture recognition."""
+
+        # Example: Save the window data to a file
+        with open('gesture_data.csv', 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            # writer.writerow(window_data)
+            for window in self.window_buffer:
+                # print(window)
+                writer.writerow(window)
+            
+            
+    def sliding_window(self, data):
+        self.window_buffer = np.row_stack((self.window_buffer, data[0]))
 
     def change_time_unit(self, tmp_arr):
         """ change time unit """
         stime = tmp_arr[0][6]
         new_arr = tmp_arr
         arr_len = len(tmp_arr)
-
         for i in range(arr_len):
             new_arr[i][6] = new_arr[i][6] - stime
         return new_arr

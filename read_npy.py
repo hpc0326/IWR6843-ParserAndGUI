@@ -16,69 +16,98 @@ load_dotenv()
 npy_file_name = os.getenv("DATA_STORAGE_FILE_NAME")
 
 
-def read_data(number):
-    """
-    從檔案中讀取資料並以 DataFrame 的形式返回
-    """
-    path = f"radar_data/{npy_file_name}_{number}.npy"
-    np_array = np.load(path)
-    dataframe = pd.DataFrame(np_array, columns=['x', 'y', 'z', 'doppler', 'range', 'snr', 'time'])
-    return dataframe, path
+class RadarDataVisualization:
+    def __init__(self):
+        self.file_number = None
+        self.gesture_dataframe = None
+        self.file_path = None
+        self.fig = None
+        self.axes = None
+        self.scatter = None
 
+    def read_data(self, number):
+        path = f"radar_data/{npy_file_name}_{number}.npy"
+        np_array = np.load(path)
+        dataframe = pd.DataFrame(np_array, columns=['x', 'y', 'z', 'doppler', 'range', 'snr', 'azimuth', 'elevation'])
+        return dataframe, path
 
-def set_figure(dataframe, title):
-    """
-    設置 3D 圖的初始設定並返回圖像和軸物件
-    """
-    fig = plt.figure()
-    axes = fig.add_subplot(projection='3d')
-    scatter = axes.scatter(dataframe['x'], dataframe['y'], dataframe['z'])
-    axes.set_xlabel('X')
-    axes.set_ylabel('Y')
-    axes.set_zlabel('Z')
-    # 調整座標範圍
-    axes.set_xlim([0.6, -0.6])
-    axes.set_ylim([0.6, 0])
-    axes.set_zlim([-0.6, 0.6])
-    # 調整視角
-    axes.view_init(elev=80, azim=-90)   # 俯視（用於觀察左右、遠近的變化）
-    # axes.view_init(elev=10, azim=-90)   # 正面（用於觀察上下、左右的變化）
-    # axes.view_init(elev=5, azim=-150)   # 側面（用於觀察上下、遠近的變化）
-    plt.title(title)
-    return fig, axes, scatter
+    def set_figure(self, title, view):
+        plt.close()
+        self.fig = plt.figure()
+        self.axes = self.fig.add_subplot(projection='3d')
+        self.scatter = self.axes.scatter(self.gesture_dataframe['x'], self.gesture_dataframe['y'], self.gesture_dataframe['z'])
+        self.axes.set_xlabel('X')
+        self.axes.set_ylabel('Y')
+        self.axes.set_zlabel('Z')
+        self.axes.set_xlim([0.6, -0.6])
+        self.axes.set_ylim([0.6, 0])
+        self.axes.set_zlim([-0.6, 0.6])
 
+        if view == 'b':
+            self.axes.view_init(elev=80, azim=-90)  # 俯視（用於觀察左右、遠近的變化）
+        elif view == 'c':
+            self.axes.view_init(elev=5, azim=-150)  # 側面（用於觀察上下、遠近的變化）
+        else :
+            self.axes.view_init(elev=10, azim=-90)  # 正面（用於觀察上下、左右的變化）
 
-def animate(path, dataframe, interval):
-    """
-    生成動畫
-    """
-    fig, _, scatter = set_figure(dataframe, f'Filepath: {path}')
-    plot = FuncAnimation(fig, update_scatter, frames=range(0, int(
-        dataframe['time'].max() * 30)), interval=interval, blit=True, fargs=(dataframe, scatter))
-    return plot
+        plt.title(title)
 
+    def update_plot(self, frame):
+        snr_nonzero_indices = np.nonzero(self.gesture_dataframe['snr'][:frame+1].values)[0]
+        self.scatter._offsets3d = (
+            self.gesture_dataframe['x'][:frame+1].values[snr_nonzero_indices],
+            self.gesture_dataframe['y'][:frame+1].values[snr_nonzero_indices],
+            self.gesture_dataframe['z'][:frame+1].values[snr_nonzero_indices]
+        )
+        self.scatter.set_array(range(len(snr_nonzero_indices)))
+        self.scatter.set_cmap('plasma')
+        self.scatter.set_clim(0, len(snr_nonzero_indices))
+        return self.scatter,
 
-def update_scatter(frame, dataframe, scatter):
-    """
-    更新 Point Cloud 的座標和顏色等資料
-    """
-    current_time = frame / 30.0
-    current_data = dataframe[dataframe['time'] <= current_time]
-    color_min = dataframe['time'].min()
-    color_max = dataframe['time'].max()
-    colors = current_data['time'].values
-    scatter._offsets3d = (
-        current_data['x'], current_data['y'], current_data['z'])
-    scatter.set_array(colors)
-    scatter.set_cmap('plasma')
-    scatter.set_clim(color_min, color_max)
-    return scatter,
+    def run(self, file_number, view = 'a'):
+        self.file_number = file_number
+        if not os.path.exists(f"radar_data/{npy_file_name}_{self.file_number}.npy"):
+            print(f"文件 {npy_file_name}_{self.file_number}.npy 不存在。")
+            return False
+
+        self.gesture_dataframe, self.file_path = self.read_data(self.file_number)
+        print("All data\n", self.gesture_dataframe)
+        # self.gesture_dataframe = self.gesture_dataframe.loc[self.gesture_dataframe['snr'] != 0].reset_index(drop=True)
+        # print("No Zero\n", self.gesture_dataframe)
+
+        self.set_figure(f'Filepath: {self.file_path}', view)
+        animation = FuncAnimation(self.fig, self.update_plot, frames=len(self.gesture_dataframe), interval=20, blit=True)
+
+        output_file = 'radar_data_gif/PointCloud_animation.gif'
+        animation.save(output_file, writer='pillow')
+        print(f"圖片已儲存至 {output_file}")
+
+    def get_animation(self, dataframe):
+        self.gesture_dataframe = dataframe
+        self.gesture_dataframe = self.gesture_dataframe.loc[self.gesture_dataframe['snr'] != 0].reset_index(drop=True)
+        print(self.gesture_dataframe)
+
+        self.set_figure(f'Filepath: {self.file_path}')
+        animation = FuncAnimation(self.fig, self.update_plot, frames=len(self.gesture_dataframe), interval=40, blit=True)
+
+        output_file = 'radar_data_gif/PointCloud_animation.gif'
+        animation.save(output_file, writer='pillow')
+        print(f"圖片已儲存至 {output_file}")
 
 
 if __name__ == '__main__':
-    file_number = input("請輸入要查看的檔案編號:")
-    gesture_dataframe, file_path = read_data(file_number)
-    print(gesture_dataframe)
-    animation = animate(file_path, gesture_dataframe, interval=33)
-    animation.save('radar_data_gif/PointCloud_animation.gif')
-    # plt.show()  # 打開 3D 圖的視窗
+    radar_viz = RadarDataVisualization()
+
+    file_number = int(input("請輸入要查看的起始檔案編號: "))
+    view = str(input("請輸入要查看的視角，a, b, c 分別為正面、俯視和側面視角: "))
+    while True:
+        success = radar_viz.run(file_number, view)
+        if success:
+            input("按 Enter 繼續到下一個文件...")
+            file_number += 1
+        else:
+            new_number = input("請輸入新的編號或按 Enter 換下一筆資料: ")
+            if new_number:
+                file_number = int(new_number)
+            else:
+                file_number += 1
