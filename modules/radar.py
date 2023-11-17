@@ -318,9 +318,12 @@ class Radar:
             self.wave_last_pt = self.wave_end_pt
             self.wave_end_pt = avg_pt
 
-            if (self.wave_end_pt != self.wave_last_pt).all():  # avoid noise point
-                if self.detection != 1:  # avoid duplicate start point
+            if self.detection != 1:  # avoid duplicate start point
                     self.tmp_record_arr = np.append(self.tmp_record_arr, avg_pt, axis=0)
+
+            # if (self.wave_end_pt != self.wave_last_pt).all():  # avoid noise point
+            #     if self.detection != 1:  # avoid duplicate start point
+            #         self.tmp_record_arr = np.append(self.tmp_record_arr, avg_pt, axis=0)
 
         elif data_ok == 0:
             self.wave_end_time = time.time()

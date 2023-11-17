@@ -41,8 +41,8 @@ def set_figure(dataframe, title):
     axes.set_ylim([0.6, 0])
     axes.set_zlim([-0.6, 0.6])
     # 調整視角
-    axes.view_init(elev=80, azim=-90)   # 俯視（用於觀察左右、遠近的變化）
-    # axes.view_init(elev=10, azim=-90)   # 正面（用於觀察上下、左右的變化）
+    # axes.view_init(elev=80, azim=-90)   # 俯視（用於觀察左右、遠近的變化）
+    axes.view_init(elev=10, azim=-90)   # 正面（用於觀察上下、左右的變化）
     # axes.view_init(elev=5, azim=-150)   # 側面（用於觀察上下、遠近的變化）
     plt.title(title)
     return fig, axes, scatter
