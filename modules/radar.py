@@ -6,12 +6,12 @@ import serial
 import numpy as np
 import pandas as pd
 from modules.parser_mmw_demo import parser_one_mmw_demo_output_packet
-import matplotlib as plt
-
+import matplotlib.pyplot as plt
 
 
 class Radar:
     """ Class: Radar """
+
     def __init__(self):
         self.debug = False
         self.detection = 0
@@ -28,12 +28,13 @@ class Radar:
         self.wave_end_time = 0
         self.tmp_record_arr = np.zeros((1, 4))
         self.radar_parameters = {}
-         # Number of data points in each window
-        self.window_buffer = np.ndarray((0,9))  # Buffer to store data points for each window
-        self.WINDOW_SIZE = 25 
+        # Number of data points in each window
+        # Buffer to store data points for each window
+        self.window_buffer = np.ndarray((0, 9))
+        self.WINDOW_SIZE = 25
         print('''[Info] Initialize Radar class ''')
 
-    def start(self, radar_cli_port, radar_data_port, radar_config_file_path, window_size = 25):
+    def start(self, radar_cli_port, radar_data_port, radar_config_file_path, window_size=25):
         """ Radar.start """
         radar_config = []
         self.WINDOW_SIZE = window_size
@@ -80,7 +81,8 @@ class Radar:
         num_chirps_per_frame = (
             chirp_end_idx - chirp_start_idx + 1) * num_loops
         radar_parameters["num_frames"] = num_frames
-        radar_parameters["num_doppler_bins"] = num_chirps_per_frame / self.num_tx_ant
+        radar_parameters["num_doppler_bins"] = num_chirps_per_frame / \
+            self.num_tx_ant
         radar_parameters["num_range_bins"] = num_adc_aamples_round_to_2
         radar_parameters["range_resolution_meters"] = (
             3e8 * dig_out_sample_rate * 1e3) / (2 * freq_slope_const * 1e12 * num_adc_samples)
@@ -96,7 +98,7 @@ class Radar:
         print(
             f'''[Info] radar_parameters: {radar_parameters} ''')
         return radar_parameters
-    
+
     def read_and_parse_radar_data(self, data_serial):
         """ read and parse radar data """
         # Initialize variables
@@ -112,7 +114,7 @@ class Radar:
         # Check that the buffer is not full, and then add the data to the buffer
         if (self.byte_buffer_length + byteCount) < self.max_buffer_size:
             self.byte_buffer[self.byte_buffer_length:self.byte_buffer_length +
-                    byteCount] = byteVec[:byteCount]
+                             byteCount] = byteVec[:byteCount]
             self.byte_buffer_length = self.byte_buffer_length + byteCount
 
         # Check that the buffer has some data
@@ -134,21 +136,23 @@ class Radar:
                 # Remove the data before the first start index
                 if startIdx[0] > 0 and startIdx[0] < self.byte_buffer_length:
                     self.byte_buffer[:self.byte_buffer_length-startIdx[0]
-                            ] = self.byte_buffer[startIdx[0]:self.byte_buffer_length]
+                                     ] = self.byte_buffer[startIdx[0]:self.byte_buffer_length]
                     self.byte_buffer[self.byte_buffer_length-startIdx[0]:] = np.zeros(
                         len(self.byte_buffer[self.byte_buffer_length-startIdx[0]:]), dtype='uint8')
-                    self.byte_buffer_length = self.byte_buffer_length - startIdx[0]
+                    self.byte_buffer_length = self.byte_buffer_length - \
+                        startIdx[0]
 
                 # Check that there have no errors with the byte buffer length
                 if self.byte_buffer_length < 0:
                     self.byte_buffer_length = 0
 
                 # Read the total packet length
-                totalPacketLen = np.matmul(self.byte_buffer[12:12+4], self.word)
+                totalPacketLen = np.matmul(
+                    self.byte_buffer[12:12+4], self.word)
                 # Check that all the packet has been read
                 if (self.byte_buffer_length >= totalPacketLen) and (self.byte_buffer_length != 0):
                     magicOK = 1
-        
+
         rangeArray = []
         dopplerArray = []
         rangeDoppler = []
@@ -161,7 +165,7 @@ class Radar:
             allBinData = self.byte_buffer
             if (self.debug):
                 print("allBinData: ",
-                    allBinData[0], allBinData[1], allBinData[2], allBinData[3])
+                      allBinData[0], allBinData[1], allBinData[2], allBinData[3])
 
             # init local variables
             totalBytesParsed = 0
@@ -174,26 +178,25 @@ class Radar:
             # parsed data to stdio. So showcasing only saving the data to arrays
             # here for further custom processing
             parser_result, \
-            headerStartIndex,  \
-            totalPacketNumBytes, \
-            numDetObj,  \
-            numTlv,  \
-            subFrameNumber,  \
-            detectedX_array,  \
-            detectedY_array,  \
-            detectedZ_array,  \
-            detectedV_array,  \
-            detectedRange_array,  \
-            detectedAzimuth_array,  \
-            detectedElevation_array,  \
-            detectedSNR_array,  \
-            detectedNoise_array,\
-            rangeArray,\
-            dopplerArray,\
-            rangeDoppler = parser_one_mmw_demo_output_packet(
-                allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.radar_parameters, self.debug)
+                headerStartIndex,  \
+                totalPacketNumBytes, \
+                numDetObj,  \
+                numTlv,  \
+                subFrameNumber,  \
+                detectedX_array,  \
+                detectedY_array,  \
+                detectedZ_array,  \
+                detectedV_array,  \
+                detectedRange_array,  \
+                detectedAzimuth_array,  \
+                detectedElevation_array,  \
+                detectedSNR_array,  \
+                detectedNoise_array, \
+                rangeArray, \
+                dopplerArray, \
+                rangeDoppler = parser_one_mmw_demo_output_packet(
+                    allBinData[totalBytesParsed::1], readNumBytes-totalBytesParsed, self.radar_parameters, self.debug)
 
-            
             if (self.debug):
                 print("Parser result: ", parser_result)
             if (parser_result == 0):
@@ -209,18 +212,18 @@ class Radar:
                 ##################################################################################
 
                 detObj = {"numObj": numDetObj, "range": detectedRange_array, "doppler": detectedV_array,
-                        "x": detectedX_array, "y": detectedY_array, "z": detectedZ_array,
-                        "elevation": detectedElevation_array, "azimuth" : detectedAzimuth_array, "snr": detectedSNR_array, 
-                        "rangeArray" : rangeArray , "dopplerArray" : dopplerArray , 
-                        "rangeDoppler" : rangeDoppler,"doppler": detectedV_array, 
-                        "snr": detectedSNR_array,  "noise": detectedNoise_array
-                        }
-                
+                          "x": detectedX_array, "y": detectedY_array, "z": detectedZ_array,
+                          "elevation": detectedElevation_array, "azimuth": detectedAzimuth_array, "snr": detectedSNR_array,
+                          "rangeArray": rangeArray, "dopplerArray": dopplerArray,
+                          "rangeDoppler": rangeDoppler, "doppler": detectedV_array,
+                          "snr": detectedSNR_array,  "noise": detectedNoise_array
+                          }
+
                 dataOK = 1
 
             shiftSize = totalPacketNumBytes
             self.byte_buffer[:self.byte_buffer_length -
-                    shiftSize] = self.byte_buffer[shiftSize:self.byte_buffer_length]
+                             shiftSize] = self.byte_buffer[shiftSize:self.byte_buffer_length]
             self.byte_buffer[self.byte_buffer_length - shiftSize:] = np.zeros(
                 len(self.byte_buffer[self.byte_buffer_length - shiftSize:]), dtype='uint8')
             self.byte_buffer_length = self.byte_buffer_length - shiftSize
@@ -231,13 +234,9 @@ class Radar:
             # All processing done; Exit
             if (self.debug):
                 print("numFramesParsed: ", numFramesParsed)
-            
-                
+
         return dataOK, frameNumber, detObj
-    
-    
-    
-    
+
     def find_average_point(self, data_ok, detection_obj):
         """ find average point """
         x_value = 0
@@ -248,17 +247,16 @@ class Radar:
         num_points = 0
         snr_max = 200
         zero_pt = np.zeros((1, 9))  # for initial zero value
-        
 
         # get average point per frame
         if data_ok:
             pos_pt = np.zeros((detection_obj["numObj"], 9))
             avg_pt = zero_pt
-            
+
             pos_pt = np.array(list(map(tuple, np.stack([
                 detection_obj["x"], detection_obj["y"], detection_obj["z"], detection_obj["doppler"],
-                detection_obj["range"], detection_obj["snr"], detection_obj["azimuth"], detection_obj["elevation"]] , axis=1))))
-            
+                detection_obj["range"], detection_obj["snr"], detection_obj["azimuth"], detection_obj["elevation"]], axis=1))))
+
             # 取出符合條件的索引
             indices = np.where(pos_pt[:, 5] > snr_max)
             x_vals, y_vals, z_vals, doppler_vals, range_vals, snr_vals, azi_vals, eln_vals = pos_pt[indices, :9].T
@@ -276,7 +274,8 @@ class Radar:
             save_point = 0
 
             if num_points > 0:
-                avg_pt = np.array([[x_value, y_value, z_value, doppler_value, range_value, snr_value, azi_vals, eln_vals, time.time()]])
+                avg_pt = np.array([[x_value, y_value, z_value, doppler_value,
+                                  range_value, snr_value, azi_vals, eln_vals, time.time()]])
                 return avg_pt
             else:
                 avg_pt = zero_pt
@@ -284,7 +283,7 @@ class Radar:
 
     # def data_to_numpy(self, npy_file_dir, npy_file_name):
     #     filecount = len(os.listdir(npy_file_dir))
-    #     filecount = filecount -1 
+    #     filecount = filecount -1
     #     # print(filecount)
     #     filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
     #     # new_arr = self.change_time_unit(self.window_buffer)
@@ -292,21 +291,20 @@ class Radar:
     #     np.save(filename, new_arr)
     #     print(f"Gesture data {filecount} has been saved.")
 
-    def data_to_numpy(self, npy_file_dir, npy_file_name):
+    def data_to_numpy(self, npy_file_dir, npy_file_name, pic_file_dir):
         filecount = len(os.listdir(npy_file_dir)) - 1
         filename = f"{npy_file_dir}/{npy_file_name}_{filecount}.npy"
 
-        data_frame = pd.DataFrame(self.window_buffer, columns=['x', 'y', 'z', 'doppler', 'range', 'snr', 'azimuth', 'elevation', 'time']).drop('time', axis=1)
+        data_frame = pd.DataFrame(self.window_buffer, columns=[
+                                  'x', 'y', 'z', 'doppler', 'range', 'snr', 'azimuth', 'elevation', 'time']).drop('time', axis=1)
 
         data_frame.replace(0, np.nan, inplace=True)
 
         dataframe_interpolated = data_frame.interpolate(method='linear', limit_direction='both')
 
-        # 檢查開頭和結尾是否有連續的NaN行
         start_index = data_frame.first_valid_index()
         end_index = data_frame.last_valid_index()
 
-        # 保留原始DataFrame的開頭和結尾部分
         if start_index is not None:
             dataframe_interpolated.iloc[:start_index] = data_frame.iloc[:start_index]
         if end_index is not None:
@@ -316,9 +314,45 @@ class Radar:
         np.save(filename, interpolated_npy)
         print(f"Gesture data {filecount} has been saved.")
 
+        self.plot_data(interpolated_npy, filecount, pic_file_dir)
+    
+    def plot_data(self, np_array, filecount, pic_file_dir):
+        y_ranges = {'Range': (-0.2, 0.8), 'Doppler': (-2.5, 2.5),
+                    'Azimuth': (-60, 60), 'Elevation': (-60, 60)}
+        param_indices = {'Range': 4, 'Doppler': 3, 'Azimuth': 6, 'Elevation': 7}
+
+        plt.figure(figsize=(32, 32))
+        for i, (param, y_range) in enumerate(y_ranges.items(), start=1):
+            ax = plt.subplot(2, 2, i)
+            self.data_to_pic(ax, np_array, param_indices[param], param, y_range)
+        
+        img_filename = f'{pic_file_dir}/image_{filecount}.png'
+        plt.savefig(img_filename, bbox_inches='tight', pad_inches=0.5, dpi=10)
+        plt.savefig(f'{pic_file_dir}/image.png', bbox_inches='tight', pad_inches=0.5, dpi=10)
+        plt.close()
+        print(f"Gesture data {filecount} has been saved as image: {img_filename}.")
+
+    def data_to_pic(self, ax, np_array, param_index, param_name, y_range):
+        color_dict = {
+            'Range': 'blue',
+            'Doppler': 'green',
+            'Azimuth': 'red',
+            'Elevation': 'orange'
+        }
+
+        times = np.arange(np_array.shape[0])
+        values = np_array[:, param_index]
+
+        line_color = color_dict.get(param_name, 'black')
+        ax.plot(times, values, linewidth=10, color=line_color) 
+        # ax.plot(times, values, linewidth=10, color='black')
+        ax.set_ylim(y_range)
+        # ax.set_title(param_name)
+        ax.set_xticklabels([]) 
+        ax.set_yticklabels([]) 
+
     def data_to_csv(self):
         """Process the data points in a window and perform gesture recognition."""
-
         # Example: Save the window data to a file
         with open('gesture_data.csv', 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
@@ -326,8 +360,7 @@ class Radar:
             for window in self.window_buffer:
                 # print(window)
                 writer.writerow(window)
-            
-            
+
     def sliding_window(self, data):
         self.window_buffer = np.row_stack((self.window_buffer, data[0]))
 
