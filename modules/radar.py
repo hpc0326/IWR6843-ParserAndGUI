@@ -315,41 +315,64 @@ class Radar:
         print(f"Gesture data {filecount} has been saved.")
 
         self.plot_data(interpolated_npy, filecount, pic_file_dir)
-    
+
     def plot_data(self, np_array, filecount, pic_file_dir):
-        y_ranges = {'Range': (-0.2, 0.8), 'Doppler': (-2.5, 2.5),
-                    'Azimuth': (-60, 60), 'Elevation': (-60, 60)}
-        param_indices = {'Range': 4, 'Doppler': 3, 'Azimuth': 6, 'Elevation': 7}
+        y_ranges = {'Range': (-0.2, 0.8), 'Doppler': (-2.5, 2.5), 'Azimuth': (-60, 60), 'Elevation': (-60, 60)}
+        for param, y_range in y_ranges.items():
+            index = {'Range': 4, 'Doppler': 3, 'Azimuth': 6, 'Elevation': 7}[param]
+            self.plot_parameter_over_time(np_array, index, param, filecount, y_range, pic_file_dir)
 
-        plt.figure(figsize=(32, 32))
-        for i, (param, y_range) in enumerate(y_ranges.items(), start=1):
-            ax = plt.subplot(2, 2, i)
-            self.data_to_pic(ax, np_array, param_indices[param], param, y_range)
-        
-        img_filename = f'{pic_file_dir}/image_{filecount}.png'
-        plt.savefig(img_filename, bbox_inches='tight', pad_inches=0.5, dpi=10)
-        plt.savefig(f'{pic_file_dir}/image.png', bbox_inches='tight', pad_inches=0.5, dpi=10)
-        plt.close()
-        print(f"Gesture data {filecount} has been saved as image: {img_filename}.")
-
-    def data_to_pic(self, ax, np_array, param_index, param_name, y_range):
-        color_dict = {
-            'Range': 'blue',
-            'Doppler': 'green',
-            'Azimuth': 'red',
-            'Elevation': 'orange'
-        }
-
+    def plot_parameter_over_time(self, np_array, param_index, param_name, number, y_range, pic_file_dir):
         times = np.arange(np_array.shape[0])
         values = np_array[:, param_index]
 
-        line_color = color_dict.get(param_name, 'black')
-        ax.plot(times, values, linewidth=10, color=line_color) 
-        # ax.plot(times, values, linewidth=10, color='black')
-        ax.set_ylim(y_range)
-        # ax.set_title(param_name)
-        ax.set_xticklabels([]) 
-        ax.set_yticklabels([]) 
+        background_color = (0.8, 0.8, 0.8)
+        line_color = (0.2, 0.2, 0.2)
+
+        plt.figure(figsize=(32, 32), facecolor=background_color)
+        plt.plot(times, values, linewidth=10, color=line_color)
+        plt.ylim(y_range)
+        plt.axis('off')
+        img_filename = f'{pic_file_dir}/yuan_data_{number}_{param_name.lower()}.png'
+        plt.savefig(f'{pic_file_dir}/aimage_{param_name.lower()}.png', bbox_inches='tight', pad_inches=0, dpi=10)
+        plt.savefig(img_filename, bbox_inches='tight', pad_inches=0, dpi=10)
+        plt.close()
+        print(f"Gesture data {number} has been saved as image: {img_filename}.")
+    
+    # def plot_data(self, np_array, filecount, pic_file_dir):
+    #     y_ranges = {'Range': (-0.2, 0.8), 'Doppler': (-2.5, 2.5),
+    #                 'Azimuth': (-60, 60), 'Elevation': (-60, 60)}
+    #     param_indices = {'Range': 4, 'Doppler': 3, 'Azimuth': 6, 'Elevation': 7}
+
+    #     plt.figure(figsize=(32, 32))
+    #     for i, (param, y_range) in enumerate(y_ranges.items(), start=1):
+    #         ax = plt.subplot(2, 2, i)
+    #         self.data_to_pic(ax, np_array, param_indices[param], param, y_range)
+        
+    #     img_filename = f'{pic_file_dir}/image_{filecount}.png'
+    #     plt.savefig(img_filename, bbox_inches='tight', pad_inches=0.5, dpi=10)
+    #     plt.savefig(f'{pic_file_dir}/image.png', bbox_inches='tight', pad_inches=0.5, dpi=10)
+    #     plt.close()
+    #     print(f"Gesture data {filecount} has been saved as image: {img_filename}.")
+
+    # def data_to_pic(self, ax, np_array, param_index, param_name, y_range):
+    #     color_dict = {
+    #         'Range': 'blue',
+    #         'Doppler': 'green',
+    #         'Azimuth': 'red',
+    #         'Elevation': 'orange'
+    #     }
+
+    #     times = np.arange(np_array.shape[0])
+    #     values = np_array[:, param_index]
+
+    #     line_color = color_dict.get(param_name, 'black')
+    #     ax.plot(times, values, linewidth=10, color=line_color) 
+    #     # ax.plot(times, values, linewidth=10, color='black')
+    #     ax.set_ylim(y_range)
+    #     # ax.set_title(param_name)
+    #     ax.set_xticklabels([]) 
+    #     ax.set_yticklabels([]) 
 
     def data_to_csv(self):
         """Process the data points in a window and perform gesture recognition."""
