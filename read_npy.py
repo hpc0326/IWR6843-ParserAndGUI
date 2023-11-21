@@ -101,13 +101,29 @@ if __name__ == '__main__':
     file_number = int(input("請輸入要查看的起始檔案編號: "))
     view = str(input("請輸入要查看的視角，a, b, c 分別為正面、俯視和側面視角: "))
     while True:
-        success = radar_viz.run(file_number, view)
-        if success:
-            input("按 Enter 繼續到下一個文件...")
-            file_number += 1
+        status = radar_viz.run(file_number, view)
+        if status == None:
+            action = input("按 Enter 繼續到下一個文件，輸入新的編號來查看特定文件，或輸入 'd' 刪除當前文件: ")
+            if action == 'd':
+                try:
+                    os.remove(f"radar_data/{npy_file_name}_{file_number}.npy")
+                    print(f"文件 {npy_file_name}_{file_number}.npy 已被刪除。")
+                    for suffix in ["azimuth", "doppler", "elevation", "range"]:
+                        png_path = f"radar_data_pic/{npy_file_name}_{file_number}_{suffix}.png"
+                        os.remove(png_path)
+                        print(f"文件 {png_path} 已被刪除。")
+                    file_number += 1
+                except OSError as e:
+                    print(f"文件刪除錯誤: {e}")
+                    file_number += 1
+            elif action.isdigit():
+                print('digit')
+                file_number = int(action)
+            else:
+                file_number += 1
         else:
             new_number = input("請輸入新的編號或按 Enter 換下一筆資料: ")
-            if new_number:
+            if new_number.isdigit():
                 file_number = int(new_number)
             else:
                 file_number += 1
