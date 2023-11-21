@@ -20,13 +20,14 @@ class Utils:
         radar_config_file_name = os.environ.get("RADAR_CONFIG_FILE_NAME")
         data_storage_file_path = os.environ.get("DATA_STORAGE_FILE_PATH")
         data_storage_file_name = os.environ.get("DATA_STORAGE_FILE_NAME")
+        pic_storage_file_name = os.environ.get("IMAGE_STORAGE_FILE_PATH")
         radar_config_file_path = f'''{radar_config_prefix_path}/{radar_config_file_name}'''
         print(
             f'''[Info] RADAR_CLI_PORT: {radar_cli_port}\n''' +
             f'''[Info] RADAR_DATA_PORT: {radar_data_port}\n''' +
             f'''[Info] RADAR_CONFIG_FILE_PATH: {radar_config_file_path}'''
         )
-        return radar_cli_port, radar_data_port, radar_config_file_path, data_storage_file_path, data_storage_file_name
+        return radar_cli_port, radar_data_port, radar_config_file_path, data_storage_file_path, data_storage_file_name, pic_storage_file_name
 
     def get_gui_env(self):
         """ Reading environmental variables """

@@ -17,7 +17,7 @@ Radar = Radar()
 GUI = GUI()
 HEATMAP = HEATMAP()
 
-RADAR_CLI_PORT, RADAR_DATA_PORT, RADAR_CONFIG_FILE_PATH, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME = Utils.get_radar_env()
+RADAR_CLI_PORT, RADAR_DATA_PORT, RADAR_CONFIG_FILE_PATH, DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, IMAGE_STORAGE_FILE_PATH = Utils.get_radar_env()
 cli_serial, data_serial = Radar.start(
     RADAR_CLI_PORT, RADAR_DATA_PORT, RADAR_CONFIG_FILE_PATH)
 
@@ -87,7 +87,7 @@ def radar_thread_function():
 
             if status and counter == 25:
                 print("Gesture End\n")
-                Radar.data_to_numpy(DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME)
+                Radar.data_to_numpy(DATA_STORAGE_FILE_PATH, DATA_STORAGE_FILE_NAME, IMAGE_STORAGE_FILE_PATH)
                 # reset
                 counter = 0
                 sta = []
