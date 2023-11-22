@@ -329,13 +329,16 @@ class Radar:
         background_color = (0.8, 0.8, 0.8)
         line_color = (0.2, 0.2, 0.2)
 
-        plt.figure(figsize=(32, 32), facecolor=background_color)
-        plt.plot(times, values, linewidth=10, color=line_color)
+        plt.figure(figsize=(4, 4), facecolor=background_color)
+        plt.plot(times, values, linewidth=3, color=line_color)
         plt.ylim(y_range)
         plt.axis('off')
+        plt.gca().set_position([0, 0, 1, 1])
+        plt.gca().set_aspect('auto')
+
         img_filename = f'{pic_file_dir}/yuan_data_{number}_{param_name.lower()}.png'
-        plt.savefig(f'{pic_file_dir}/aimage_{param_name.lower()}.png', bbox_inches='tight', pad_inches=0, dpi=10)
-        plt.savefig(img_filename, bbox_inches='tight', pad_inches=0, dpi=10)
+        # plt.savefig(f'{pic_file_dir}/aimage_{param_name.lower()}.png', bbox_inches='tight', pad_inches=0, dpi=80)
+        plt.savefig(img_filename, bbox_inches='tight', pad_inches=0, dpi=80)
         plt.close()
         print(f"Gesture data {number} has been saved as image: {img_filename}.")
     
