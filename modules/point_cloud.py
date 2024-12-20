@@ -5,7 +5,7 @@ import pyqtgraph.opengl as gl
 import pyqtgraph as pg
 import numpy as np
 
-class GUI():
+class Point_Cloud():
     ''' Class GUI '''
 
     def __init__(self):

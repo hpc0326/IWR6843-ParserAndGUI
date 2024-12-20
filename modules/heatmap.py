@@ -7,7 +7,7 @@ import pyqtgraph as pg
 import numpy as np
 from colour import Color
 
-class HEATMAP():
+class Heat_Map():
     ''' Class GUI '''
 
     def __init__(self):

@@ -32,3 +32,8 @@ Read Radar Data
 ```bash
 python read_npy.py
 ```
+---
+## Recommended
+```
+python 3.8 or 3.9
+```

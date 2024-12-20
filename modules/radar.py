@@ -5,7 +5,7 @@ import csv
 import serial
 import numpy as np
 import pandas as pd
-from modules.parser_mmw_demo import parser_one_mmw_demo_output_packet
+from modules.parser_module.parser_mmw_demo import parser_one_mmw_demo_output_packet
 import matplotlib.pyplot as plt
 
 
@@ -281,16 +281,6 @@ class Radar:
                 avg_pt = zero_pt
                 return avg_pt
 
-    # def data_to_numpy(self, npy_file_dir, npy_file_name):
-    #     filecount = len(os.listdir(npy_file_dir))
-    #     filecount = filecount -1
-    #     # print(filecount)
-    #     filename = f"./radar_data/{npy_file_name}_{filecount}.npy"
-    #     # new_arr = self.change_time_unit(self.window_buffer)
-    #     new_arr = self.window_buffer
-    #     np.save(filename, new_arr)
-    #     print(f"Gesture data {filecount} has been saved.")
-
     def data_to_numpy(self, npy_file_dir, npy_file_name, pic_file_dir):
         filecount = len(os.listdir(npy_file_dir)) - 1
         filename = f"{npy_file_dir}/{npy_file_name}_{filecount}.npy"
@@ -341,41 +331,6 @@ class Radar:
         plt.savefig(img_filename, bbox_inches='tight', pad_inches=0, dpi=80)
         plt.close()
         print(f"Gesture data {number} has been saved as image: {img_filename}.")
-    
-    # def plot_data(self, np_array, filecount, pic_file_dir):
-    #     y_ranges = {'Range': (-0.2, 0.8), 'Doppler': (-2.5, 2.5),
-    #                 'Azimuth': (-60, 60), 'Elevation': (-60, 60)}
-    #     param_indices = {'Range': 4, 'Doppler': 3, 'Azimuth': 6, 'Elevation': 7}
-
-    #     plt.figure(figsize=(32, 32))
-    #     for i, (param, y_range) in enumerate(y_ranges.items(), start=1):
-    #         ax = plt.subplot(2, 2, i)
-    #         self.data_to_pic(ax, np_array, param_indices[param], param, y_range)
-        
-    #     img_filename = f'{pic_file_dir}/image_{filecount}.png'
-    #     plt.savefig(img_filename, bbox_inches='tight', pad_inches=0.5, dpi=10)
-    #     plt.savefig(f'{pic_file_dir}/image.png', bbox_inches='tight', pad_inches=0.5, dpi=10)
-    #     plt.close()
-    #     print(f"Gesture data {filecount} has been saved as image: {img_filename}.")
-
-    # def data_to_pic(self, ax, np_array, param_index, param_name, y_range):
-    #     color_dict = {
-    #         'Range': 'blue',
-    #         'Doppler': 'green',
-    #         'Azimuth': 'red',
-    #         'Elevation': 'orange'
-    #     }
-
-    #     times = np.arange(np_array.shape[0])
-    #     values = np_array[:, param_index]
-
-    #     line_color = color_dict.get(param_name, 'black')
-    #     ax.plot(times, values, linewidth=10, color=line_color) 
-    #     # ax.plot(times, values, linewidth=10, color='black')
-    #     ax.set_ylim(y_range)
-    #     # ax.set_title(param_name)
-    #     ax.set_xticklabels([]) 
-    #     ax.set_yticklabels([]) 
 
     def data_to_csv(self):
         """Process the data points in a window and perform gesture recognition."""

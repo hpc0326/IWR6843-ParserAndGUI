@@ -4,6 +4,76 @@ import csv
 import numpy as np
 from dotenv import load_dotenv
 
+load_dotenv()
+
+class Radar_ENV:
+    def __init__(self):
+        self.radar_cli_port = os.environ.get("RADAR_CLI_PORT")
+        self.radar_data_port = os.environ.get("RADAR_DATA_PORT")
+        self.radar_config_prefix_path = os.environ.get("RADAR_CONFIG_PREFIX_PATH")
+        self.radar_config_file_name = os.environ.get("RADAR_CONFIG_FILE_NAME")
+        self.data_storage_file_path = os.environ.get("DATA_STORAGE_FILE_PATH")
+        self.data_storage_file_name = os.environ.get("DATA_STORAGE_FILE_NAME")
+        self.pic_storage_file_name = os.environ.get("IMAGE_STORAGE_FILE_PATH")
+        self.radar_config_file_path = f'''{self.radar_config_prefix_path}/{self.radar_config_file_name}'''
+        
+    def print_info(self):
+        print(
+            f'''[Info] RADAR_CLI_PORT: {self.radar_cli_port}\n''' +
+            f'''[Info] RADAR_DATA_PORT: {self.radar_data_port}\n''' +
+            f'''[Info] RADAR_CONFIG_FILE_PATH: {self.radar_config_file_path}'''
+        )
+        
+    def load_radar_data(self, filename):
+        """ load_radar_data """
+        x = []
+        y = []
+        with open(filename, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                npy_file = row[0]
+                label = row[1]
+                data = np.load(npy_file)
+                x.append(data) # 只保留前三個欄位
+                y.append(label)
+
+        return x, y
+        
+        
+class POINT_CLOUD_GUI_ENV: 
+    def __init__(self):
+        self.radar_position_x = float(os.environ.get("RADAR_POSISION_X"))
+        self.radar_position_y = float(os.environ.get("RADAR_POSISION_Y"))
+        self.radar_position_z = float(os.environ.get("RADAR_POSISION_Z"))
+        self.grid_size = int(os.environ.get("GRID_SIZE"))
+        
+        
+    def print_info(self):
+        print(
+            f'''[Info] RADAR_POSISION_X: {self.radar_position_x}\n''' +
+            f'''[Info] RADAR_POSISION_Y: {self.radar_position_y}\n''' +
+            f'''[Info] RADAR_POSISION_X: {self.radar_position_z}\n''' +
+            f'''[Info] GRID_SIZE: {self.grid_size}'''
+        )
+        
+    def load_radar_data(self, filename):
+        """ load_radar_data """
+        x = []
+        y = []
+        with open(filename, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                npy_file = row[0]
+                label = row[1]
+                data = np.load(npy_file)
+                x.append(data) # 只保留前三個欄位
+                y.append(label)
+
+        return x, y
+
+
+
+# useless
 class Utils:
     """ Class: Utils """
     def __init__(self):
